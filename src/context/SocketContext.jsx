@@ -10,8 +10,9 @@ export const SocketProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // Connect to backend server (uses Vite proxy / socket.io on current origin)
-    const socketInstance = io(import.meta.env.VITE_CLIENT_URL || window.location.origin, {
+    // Connect to backend server
+    const serverUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_CLIENT_URL || window.location.origin;
+    const socketInstance = io(serverUrl, {
       withCredentials: true,
       autoConnect: true,
     });
