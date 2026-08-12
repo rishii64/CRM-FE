@@ -152,6 +152,14 @@ function CustomerDashboard({ user, onLogout }) {
     // 0. Listen for Outbound incoming calls from Agent
     socket.on('incoming-call', (callData) => {
       console.log('Customer received incoming call:', callData);
+      socket.emit('join-room', { roomId: callData.roomId });
+      setActiveCall({
+        callId: callData.callId,
+        roomId: callData.roomId,
+        partnerName: callData.agentName || 'Support Agent',
+        partnerUserId: callData.agentUserId || callData.agentId,
+        role: 'Customer',
+      });
       setIncomingCallData(callData);
     });
 
@@ -210,6 +218,19 @@ function CustomerDashboard({ user, onLogout }) {
       setShowRatingModal(true);
     });
 
+    // 6. Listen for call transfer / partner changed
+    socket.on('partner-changed', (data) => {
+      console.log('Customer received partner-changed:', data);
+      setActiveCall((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          partnerName: data.newPartnerName,
+          partnerUserId: data.newPartnerUserId || data.newPartnerId,
+        };
+      });
+    });
+
     return () => {
       socket.off('incoming-call');
       socket.off('call-assigned');
@@ -217,6 +238,7 @@ function CustomerDashboard({ user, onLogout }) {
       socket.off('device-permissions-updated');
       socket.off('prompt-device-permissions');
       socket.off('call-ended');
+      socket.off('partner-changed');
     };
   }, [socket, isConnected, setActiveCall, leaveCall]);
 
@@ -441,7 +463,7 @@ function CustomerDashboard({ user, onLogout }) {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              Zentelex <span className="text-blue-700 font-bold text-xs py-0.5 px-2 bg-blue-50 rounded-full border border-blue-200">Customer Portal</span>
+              ZenSupportX <span className="text-blue-700 font-bold text-xs py-0.5 px-2 bg-blue-50 rounded-full border border-blue-200">Customer Portal</span>
             </h1>
             <p className="text-xs text-slate-500 font-medium">Welcome, {user.name}</p>
           </div>
@@ -469,51 +491,47 @@ function CustomerDashboard({ user, onLogout }) {
             <div className="flex-1 flex flex-col p-6 overflow-y-auto">
               <div className="flex-1 flex flex-col gap-4">
                 
-                {/* Streaming grid */}
-                <div className="relative flex-1 bg-black rounded-2xl border border-gray-800 overflow-hidden min-h-[300px] flex items-center justify-center shadow-2xl">
+                {/* WebRTC Call Viewport */}
+                <div className="relative flex-1 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden min-h-[340px] flex items-center justify-center shadow-2xl">
                   
-                  {/* Remote Agent Stream — always render so callback ref stays bound */}
-                  <video
-                    ref={remoteVideoCallbackRef}
-                    autoPlay
-                    playsInline
-                    className="w-full h-full object-cover"
-                    style={{ display: remoteStream ? 'block' : 'none' }}
-                  />
-                  {!remoteStream && (
-                    <div className="flex flex-col items-center text-center text-gray-500 p-4">
-                      <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-                      <p className="text-xs font-semibold">Bridging audio and video tracks...</p>
-                      <p className="text-[10px] text-gray-600 mt-1">Status: {connectionStatus}</p>
+                  {/* Clean Audio-Only Call UI */}
+                  <div className="flex flex-col items-center justify-center text-center p-8 z-10 space-y-5">
+                    <div className="relative">
+                      <div className="absolute -inset-3 rounded-full bg-blue-500/20 animate-ping"></div>
+                      <div className="absolute -inset-6 rounded-full bg-blue-500/10 animate-pulse"></div>
+                      <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 border-4 border-slate-800 text-white font-extrabold text-2xl flex items-center justify-center shadow-2xl relative">
+                        {activeCall.partnerName ? activeCall.partnerName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase() : 'AG'}
+                      </div>
                     </div>
-                  )}
 
-                  {/* Local Stream preview */}
-                  {localStream && (
-                    <div className="absolute bottom-4 right-4 w-32 sm:w-44 aspect-video bg-gray-900 border border-gray-700 rounded-xl overflow-hidden shadow-2xl">
-                      <video
-                        ref={localVideoCallbackRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="w-full h-full object-cover scale-x-[-1]"
-                      />
+                    <div>
+                      <h3 className="text-xl font-bold text-white tracking-tight">Support Agent: {activeCall.partnerName}</h3>
+                      <p className="text-xs text-blue-400 font-semibold mt-1 flex items-center justify-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        Voice Call Active • Connected to Agent
+                      </p>
                     </div>
-                  )}
 
-                  {/* Partner tag */}
-                  <div className="absolute top-4 left-4 bg-gray-900/80 backdrop-blur-md px-3 py-1.5 border border-gray-800 rounded-lg text-xs text-white">
-                    Support Agent: <span className="font-bold text-blue-400">{activeCall.partnerName}</span>
+                    {isScreenSharing && (
+                      <div className="bg-blue-500/15 border border-blue-500/30 px-4 py-2 rounded-xl text-xs text-blue-300 font-semibold flex items-center gap-2 animate-pulse">
+                        <Monitor size={16} className="text-blue-400" />
+                        <span>You are currently sharing your screen with {activeCall.partnerName}</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-1.5 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800 text-[11px] text-slate-400 font-mono">
+                      <span>Status: {connectionStatus}</span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Call controls */}
-                <div className="glass-panel p-4 rounded-2xl flex items-center justify-between border border-gray-800">
+                <div className="glass-panel p-4 rounded-2xl flex items-center justify-between border border-slate-200 shadow-xs">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={toggleMute}
-                      className={`p-3 rounded-xl transition hover-scale ${
-                        isMicMuted ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-300 hover:text-white'
+                      className={`p-3 rounded-xl transition cursor-pointer ${
+                        isMicMuted ? 'bg-red-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300'
                       }`}
                       title={isMicMuted ? 'Unmute Audio' : 'Mute Audio'}
                     >
@@ -521,32 +539,25 @@ function CustomerDashboard({ user, onLogout }) {
                     </button>
 
                     <button
-                      onClick={toggleCamera}
-                      className={`p-3 rounded-xl transition hover-scale ${
-                        isCamOff ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-300 hover:text-white'
-                      }`}
-                      title={isCamOff ? 'Enable Camera' : 'Disable Camera'}
-                    >
-                      {isCamOff ? <VideoOff size={20} /> : <Video size={20} />}
-                    </button>
-
-                    <button
                       onClick={toggleScreenShare}
-                      className={`p-3 rounded-xl transition hover-scale cursor-pointer ${
-                        isScreenSharing ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300 hover:text-white'
+                      className={`px-4 py-2.5 rounded-xl transition cursor-pointer text-xs font-bold flex items-center gap-2 ${
+                        isScreenSharing 
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20' 
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
                       }`}
-                      title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
+                      title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen with Agent'}
                     >
-                      {isScreenSharing ? <MonitorOff size={20} /> : <Monitor size={20} />}
+                      {isScreenSharing ? <MonitorOff size={16} /> : <Monitor size={16} />}
+                      <span>{isScreenSharing ? 'Stop Sharing' : 'Share Screen'}</span>
                     </button>
                   </div>
 
                   <button
                     onClick={handleEndCall}
-                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 hover:scale-102 font-semibold text-xs text-white rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-red-600/15"
+                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 hover:scale-102 font-semibold text-xs text-white rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-red-600/15 cursor-pointer"
                   >
                     <PhoneOff size={14} />
-                    End Call
+                    <span>End Call</span>
                   </button>
                 </div>
 
@@ -803,7 +814,7 @@ function CustomerDashboard({ user, onLogout }) {
 
             <h3 className="text-xl font-bold text-white mb-1">Rate Your Experience</h3>
             <p className="text-xs text-gray-400 mb-6">
-              Please rate your call experience with Zentelex support.
+              Please rate your call experience with ZenSupportX support.
             </p>
 
             {feedbackSubmitted ? (

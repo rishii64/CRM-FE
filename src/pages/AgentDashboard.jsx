@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { useWebRtc } from '../context/WebRtcContext';
-import { 
-  Video, VideoOff, Mic, MicOff, Monitor, MonitorOff, Phone, PhoneOff, Send, Paperclip, 
+import {
+  Video, VideoOff, Mic, MicOff, Monitor, MonitorOff, Phone, PhoneOff, Send, Paperclip,
   ArrowRightLeft, FileText, CheckCircle, ShieldAlert, Star, Power, User, Sun, Moon,
   Folder, Camera, Users, Lock, Eye, X, AlertCircle
 } from 'lucide-react';
@@ -32,6 +32,7 @@ function AgentDashboard({ user, onLogout }) {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isTransferPending, setIsTransferPending] = useState(false);
   const [transferStatusMsg, setTransferStatusMsg] = useState('');
+  const [incomingTransferRequest, setIncomingTransferRequest] = useState(null);
 
   // Target Device Access permission states
   const [devicePermissions, setDevicePermissions] = useState({
@@ -96,7 +97,7 @@ function AgentDashboard({ user, onLogout }) {
       setCallNotes('');
       setChatMessages([]);
       setDevicePermissions({ gallery: false, contacts: false, granted: false });
-      
+
       // Join the signaling room
       socket.emit('join-room', { roomId: callData.roomId });
 
@@ -152,21 +153,16 @@ function AgentDashboard({ user, onLogout }) {
     socket.on('transfer-completed', () => {
       setIsTransferPending(false);
       setIsTransferModalOpen(false);
+      setTransferStatusMsg('');
+      setAvailability('Available');
       leaveCall();
-      alert('Call successfully transferred. You are now available.');
+      // alert('Call successfully transferred. You are now available.');
     });
 
     // 6. Listen for incoming Transfer request invitation
-    socket.on('transfer-requested', ({ transferId, callId, roomId, fromAgentName, customerName }) => {
-      const accept = window.confirm(`Agent ${fromAgentName} wants to transfer client ${customerName} to you. Accept?`);
-      
-      socket.emit('join-room', { roomId });
-
-      fetch(`/api/calls/transfer/${transferId}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response: accept ? 'Accepted' : 'Rejected' })
-      });
+    socket.on('transfer-requested', (transferData) => {
+      console.log('Incoming transfer request:', transferData);
+      setIncomingTransferRequest(transferData);
     });
 
     return () => {
@@ -179,6 +175,40 @@ function AgentDashboard({ user, onLogout }) {
       socket.off('transfer-requested');
     };
   }, [socket, isConnected, startPeerCall, leaveCall]);
+
+  // Handle incoming transfer accept / reject
+  const handleAcceptTransfer = async () => {
+    if (!incomingTransferRequest) return;
+    const { transferId, roomId } = incomingTransferRequest;
+    socket.emit('join-room', { roomId });
+    try {
+      await fetch(`/api/calls/transfer/${transferId}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response: 'Accepted' }),
+      });
+    } catch (err) {
+      console.error('Error responding to transfer request:', err);
+    } finally {
+      setIncomingTransferRequest(null);
+    }
+  };
+
+  const handleRejectTransfer = async () => {
+    if (!incomingTransferRequest) return;
+    const { transferId } = incomingTransferRequest;
+    try {
+      await fetch(`/api/calls/transfer/${transferId}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response: 'Rejected' }),
+      });
+    } catch (err) {
+      console.error('Error rejecting transfer request:', err);
+    } finally {
+      setIncomingTransferRequest(null);
+    }
+  };
 
   // Toggle Mute Audio
   const toggleMute = () => {
@@ -343,7 +373,7 @@ function AgentDashboard({ user, onLogout }) {
       if (res.ok) {
         leaveCall();
         setCallNotes('');
-        alert('Call ended successfully.');
+        // alert('Call ended successfully.');
       }
     } catch (err) {
       console.error('Error ending call:', err);
@@ -384,7 +414,11 @@ function AgentDashboard({ user, onLogout }) {
       if (res.ok) {
         setShowOutboundCallModal(false);
         setShowCustomersModal(false);
+
+        // Join the room first
         socket.emit('join-room', { roomId: data.roomId });
+
+        // Then start the WebRTC call - this will create and send the offer
         await startPeerCall({
           callId: data.callId,
           roomId: data.roomId,
@@ -439,7 +473,7 @@ function AgentDashboard({ user, onLogout }) {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              Zentelex <span className="text-emerald-700 font-bold text-xs py-0.5 px-2 bg-emerald-50 rounded-full border border-emerald-200">Agent Workspace</span>
+              ZenSupportX <span className="text-emerald-700 font-bold text-xs py-0.5 px-2 bg-emerald-50 rounded-full border border-emerald-200">Agent Workspace</span>
             </h1>
             <p className="text-xs text-slate-500 font-medium">Agent: {user.name} ({user.agentCode || user.userId}) • {user.department?.name || 'Technical Support'}</p>
           </div>
@@ -477,22 +511,20 @@ function AgentDashboard({ user, onLogout }) {
           <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-1 gap-1">
             <button
               onClick={() => handleToggleAvailability('Available')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                availability === 'Available' 
-                  ? 'bg-emerald-600 text-white shadow-xs font-bold' 
-                  : 'text-slate-600 hover:text-emerald-700'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${availability === 'Available'
+                ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                : 'text-slate-600 hover:text-emerald-700'
+                }`}
             >
               <Power size={12} />
               Available
             </button>
             <button
               onClick={() => handleToggleAvailability('Offline')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                availability === 'Offline' 
-                  ? 'bg-red-600 text-white shadow-xs font-bold' 
-                  : 'text-slate-600 hover:text-red-700'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${availability === 'Offline'
+                ? 'bg-red-600 text-white shadow-xs font-bold'
+                : 'text-slate-600 hover:text-red-700'
+                }`}
             >
               <Power size={12} />
               Go Offline
@@ -511,7 +543,7 @@ function AgentDashboard({ user, onLogout }) {
 
       {/* Main Grid split */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        
+
         {/* Left Side Call/Streaming panel */}
         <div className="flex-1 flex flex-col p-6 overflow-y-auto">
           {!activeCall ? (
@@ -519,10 +551,10 @@ function AgentDashboard({ user, onLogout }) {
               <Video className="text-slate-300 mb-3 animate-pulse" size={60} />
               <h3 className="text-xl font-bold text-slate-900 mb-1">Awaiting Support Calls</h3>
               <p className="text-xs text-slate-500 max-w-sm">
-                Set your status to <span className="text-emerald-600 font-bold">Available</span> above. 
+                Set your status to <span className="text-emerald-600 font-bold">Available</span> above.
                 Calls from assigned customers or manual bridges will connect here.
               </p>
-              
+
               {availability === 'Offline' && (
                 <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs font-semibold flex items-center gap-2">
                   <ShieldAlert size={16} className="text-red-600" />
@@ -532,86 +564,90 @@ function AgentDashboard({ user, onLogout }) {
             </div>
           ) : (
             <div className="flex-1 flex flex-col gap-4">
-              
-              {/* WebRTC Video Call Screen */}
-              <div className="relative flex-1 bg-black rounded-2xl border border-gray-800 overflow-hidden min-h-[300px] flex items-center justify-center">
-                
-                {/* Remote Stream Video — always render the element so the callback ref stays bound */}
-                <video
-                  ref={remoteVideoCallbackRef}
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                  style={{ display: remoteStream ? 'block' : 'none' }}
-                />
-                {!remoteStream && (
-                  <div className="flex flex-col items-center text-center text-gray-500">
-                    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-                    <p className="text-xs">Connecting WebRTC media stream...</p>
-                    <p className="text-[10px] text-gray-600 mt-1">Status: {connectionStatus}</p>
-                  </div>
-                )}
 
-                {/* Local Camera stream preview overlay */}
-                {localStream && (
-                  <div className="absolute bottom-4 right-4 w-32 sm:w-44 aspect-video bg-gray-900 border border-gray-700 rounded-xl overflow-hidden shadow-2xl">
+              {/* WebRTC Call Viewport */}
+              {(() => {
+                const hasLiveRemoteVideo = remoteStream && remoteStream.getVideoTracks().some(t => t.readyState === 'live' && !t.muted);
+                return (
+                  <div className="relative flex-1 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden min-h-[340px] flex items-center justify-center shadow-2xl">
+
+                    {/* 1. Remote Video Stream (Rendered when Customer is Screen Sharing) */}
                     <video
-                      ref={localVideoCallbackRef}
+                      ref={remoteVideoCallbackRef}
                       autoPlay
                       playsInline
-                      muted
-                      className="w-full h-full object-cover scale-x-[-1]"
+                      className="w-full h-full object-contain bg-black"
+                      style={{ display: hasLiveRemoteVideo ? 'block' : 'none' }}
                     />
-                  </div>
-                )}
 
-                {/* Customer Information Tag overlay */}
-                <div className="absolute top-4 left-4 bg-gray-900/80 backdrop-blur-md px-3 py-1.5 border border-gray-800 rounded-lg text-xs text-white">
-                  Live with: <span className="font-bold text-blue-400">{activeCall.partnerName}</span>
-                </div>
-              </div>
+                    {/* 2. Audio-Only Call UI (Rendered when no active screen share) */}
+                    {!hasLiveRemoteVideo && (
+                      <div className="flex flex-col items-center justify-center text-center p-8 z-10 space-y-5">
+
+                        {/* Animated Pulsing Avatar for Active Audio Call */}
+                        <div className="relative">
+                          <div className="absolute -inset-3 rounded-full bg-emerald-500/20 animate-ping"></div>
+                          <div className="absolute -inset-6 rounded-full bg-emerald-500/10 animate-pulse"></div>
+                          <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 border-4 border-slate-800 text-white font-extrabold text-2xl flex items-center justify-center shadow-2xl relative">
+                            {activeCall.partnerName ? activeCall.partnerName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'CU'}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h3 className="text-xl font-bold text-white tracking-tight">{activeCall.partnerName}</h3>
+                          <p className="text-xs text-emerald-400 font-semibold mt-1 flex items-center justify-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Voice Call Active • Audio Stream Connected
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800 text-[11px] text-slate-400 font-mono">
+                          <span>Status: {connectionStatus}</span>
+                          <span>•</span>
+                          <span>Audio Encryption: SRTP</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Screen Share Active Tag Overlay */}
+                    {hasLiveRemoteVideo && (
+                      <div className="absolute top-4 left-4 bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 border border-slate-700 rounded-xl text-xs text-white flex items-center gap-2 shadow-lg">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        <span>Customer Screen Share • <span className="font-bold text-blue-400">{activeCall.partnerName}</span></span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Call Control Center */}
-              <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-gray-800">
+              <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-slate-200 shadow-xs">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={toggleMute}
-                    className={`p-3 rounded-xl transition hover-scale ${
-                      isMicMuted ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-300 hover:text-white'
-                    }`}
+                    className={`p-3 rounded-xl transition cursor-pointer ${isMicMuted ? 'bg-red-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300'
+                      }`}
                     title={isMicMuted ? 'Unmute Audio' : 'Mute Audio'}
                   >
                     {isMicMuted ? <MicOff size={20} /> : <Mic size={20} />}
                   </button>
-
-                  <button
-                    onClick={toggleCamera}
-                    className={`p-3 rounded-xl transition hover-scale ${
-                      isCamOff ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-300 hover:text-white'
-                    }`}
-                    title={isCamOff ? 'Enable Camera' : 'Disable Camera'}
-                  >
-                    {isCamOff ? <VideoOff size={20} /> : <Video size={20} />}
-                  </button>
-
-                  {/* Screen sharing disabled for agents */}
                 </div>
 
                 <div className="flex items-center gap-3">
                   <button
                     onClick={openTransferModal}
-                    className="px-4 py-2.5 bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/30 hover:border-purple-500 text-purple-300 text-xs font-semibold rounded-xl transition flex items-center gap-1.5 hover-scale"
+                    className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-md shadow-purple-600/20 cursor-pointer"
                   >
-                    <ArrowRightLeft size={14} />
-                    Transfer Call
+                    <ArrowRightLeft size={16} />
+                    <span>Transfer Call</span>
                   </button>
 
                   <button
                     onClick={handleEndCall}
-                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 hover:scale-102 font-semibold text-xs text-white rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-red-600/15"
+                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 hover:scale-102 font-semibold text-xs text-white rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-red-600/15 cursor-pointer"
                   >
                     <PhoneOff size={14} />
-                    Disconnect
+                    <span>Disconnect</span>
                   </button>
                 </div>
               </div>
@@ -636,7 +672,7 @@ function AgentDashboard({ user, onLogout }) {
 
         {/* Right Side Chat & Customer Context Panel */}
         <div className="w-full md:w-[380px] bg-white border-t md:border-t-0 md:border-l border-slate-200 flex flex-col overflow-hidden shrink-0 shadow-xs">
-          
+
           {activeCall ? (
             <>
               {/* Tab 1: Customer Profile Context */}
@@ -719,11 +755,10 @@ function AgentDashboard({ user, onLogout }) {
                       const isMe = msg.senderId === user.id;
                       return (
                         <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                          <div className={`p-3 rounded-xl max-w-[85%] text-xs font-medium ${
-                            isMe 
-                              ? 'bg-blue-600 text-white rounded-br-none shadow-xs' 
-                              : 'bg-slate-100 text-slate-900 border border-slate-200 rounded-bl-none'
-                          }`}>
+                          <div className={`p-3 rounded-xl max-w-[85%] text-xs font-medium ${isMe
+                            ? 'bg-blue-600 text-white rounded-br-none shadow-xs'
+                            : 'bg-slate-100 text-slate-900 border border-slate-200 rounded-bl-none'
+                            }`}>
                             {msg.messageType === 'File' ? (
                               <a
                                 href={msg.fileUrl}
@@ -760,11 +795,10 @@ function AgentDashboard({ user, onLogout }) {
                         fileInputRef.current?.click();
                       }
                     }}
-                    className={`p-2.5 rounded-xl transition ${
-                      devicePermissions.granted
-                        ? 'bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer shadow-xs'
-                        : 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed opacity-50'
-                    }`}
+                    className={`p-2.5 rounded-xl transition ${devicePermissions.granted
+                      ? 'bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer shadow-xs'
+                      : 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed opacity-50'
+                      }`}
                     title={devicePermissions.granted ? 'Upload File' : 'File sharing locked (Customer permissions required)'}
                   >
                     <Paperclip size={16} />
@@ -804,54 +838,104 @@ function AgentDashboard({ user, onLogout }) {
 
       {/* Transfer Call Modal */}
       {isTransferModalOpen && (
-        <div className="fixed inset-0 z-50 bg-[#000]/60 backdrop-blur-sm flex items-center justify-center px-4">
-          <div className="w-full max-w-sm glass-panel rounded-2xl p-6 shadow-2xl animate-scale relative border border-gray-800">
-            <h3 className="text-lg font-bold mb-1 text-white">Live Call Transfer</h3>
-            <p className="text-xs text-gray-400 mb-5">
-              Select an available agent to transfer this customer to.
-            </p>
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl animate-scale relative border border-slate-200 text-slate-900 space-y-4">
 
-            {transferStatusMsg && (
-              <div className="mb-4 p-3 bg-blue-900/30 border border-blue-500/30 rounded-xl text-blue-300 text-xs">
-                {transferStatusMsg}
-              </div>
-            )}
-
-            <div className="space-y-2 max-h-[220px] overflow-y-auto mb-6 pr-1">
-              {availableAgentsForTransfer.length === 0 ? (
-                <div className="text-center p-6 text-gray-500 text-xs">
-                  No other Available agents online.
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 text-purple-700 rounded-2xl flex items-center justify-center font-bold">
+                  <ArrowRightLeft size={20} />
                 </div>
-              ) : (
-                availableAgentsForTransfer.map((a) => (
-                  <button
-                    key={a.agentId}
-                    disabled={isTransferPending}
-                    onClick={() => handleInitiateTransfer(a.agentId)}
-                    className="w-full p-3 glass-card hover:bg-purple-600/10 border hover:border-purple-500/30 rounded-xl flex items-center justify-between text-left transition disabled:opacity-50"
-                  >
-                    <div>
-                      <h4 className="font-semibold text-white text-xs">{a.name}</h4>
-                      <p className="text-[10px] text-gray-400">{a.department?.name}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-purple-400">
-                      <Star size={11} className="fill-purple-400" />
-                      <span>{a.rating.toFixed(1)}</span>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-
-            <div className="flex gap-3 justify-end border-t border-gray-800 pt-4">
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900">
+                    Live Call Transfer
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">Transfer active customer call to another online agent</p>
+                </div>
+              </div>
               <button
                 disabled={isTransferPending}
                 onClick={() => setIsTransferModalOpen(false)}
-                className="px-4 py-2 border border-gray-700 hover:bg-gray-800 rounded-xl text-xs font-semibold text-gray-300 transition"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold transition cursor-pointer"
               >
-                Close
+                <X size={16} />
               </button>
             </div>
+
+            {/* Status notification */}
+            {transferStatusMsg && (
+              <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-800 text-xs font-semibold flex items-center gap-2">
+                <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-purple-600 border-t-transparent shrink-0"></div>
+                <span>{transferStatusMsg}</span>
+              </div>
+            )}
+
+            {/* Agent selection list */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Select Available Agent ({availableAgentsForTransfer.length})
+              </label>
+
+              <div className="space-y-2.5 max-h-[260px] overflow-y-auto pr-1">
+                {availableAgentsForTransfer.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                    <Users size={32} className="mx-auto text-slate-400" />
+                    <p className="text-xs font-bold text-slate-700">No Online Agents Available</p>
+                    <p className="text-[11px] text-slate-500">There are currently no other agents with "Available" status to receive transfers.</p>
+                  </div>
+                ) : (
+                  availableAgentsForTransfer.map((a) => (
+                    <div
+                      key={a.agentId}
+                      className="p-3.5 bg-slate-50 hover:bg-purple-50/60 border border-slate-200 hover:border-purple-300 rounded-2xl flex items-center justify-between transition group shadow-xs"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-purple-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
+                          {a.name ? a.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'AG'}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-extrabold text-slate-900 text-sm">{a.name}</h4>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              Available
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-slate-500 font-medium">{a.department?.name || 'Support'}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="flex items-center gap-1 text-xs font-bold text-amber-600">
+                              <Star size={12} className="fill-amber-400 text-amber-400" />
+                              {typeof a.rating === 'number' ? a.rating.toFixed(1) : '5.0'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        disabled={isTransferPending}
+                        onClick={() => handleInitiateTransfer(a.agentId)}
+                        className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm shadow-purple-200 active:scale-95 shrink-0"
+                      >
+                        <ArrowRightLeft size={13} />
+                        <span>Transfer</span>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end border-t border-slate-100 pt-3">
+              <button disabled={isTransferPending} onClick={() => setIsTransferModalOpen(false)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+
           </div>
         </div>
       )}
@@ -860,7 +944,7 @@ function AgentDashboard({ user, onLogout }) {
       {isDeviceDataModalOpen && (
         <div className="fixed inset-0 z-50 bg-[#000]/75 backdrop-blur-md flex items-center justify-center p-4 animate-scale">
           <div className="w-full max-w-2xl glass-panel rounded-2xl p-6 border border-emerald-500/30 shadow-2xl relative space-y-4">
-            
+
             {/* Header */}
             <div className="flex justify-between items-start border-b border-gray-800 pb-3">
               <div>
@@ -891,11 +975,10 @@ function AgentDashboard({ user, onLogout }) {
             <div className="flex gap-2 border-b border-gray-800 pb-2">
               <button
                 onClick={() => setActiveDeviceTab('gallery')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition ${
-                  activeDeviceTab === 'gallery'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-white'
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition ${activeDeviceTab === 'gallery'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:text-white'
+                  }`}
               >
                 <Camera size={14} />
                 <span>Gallery Media ({deviceData?.gallery?.length || 0})</span>
@@ -903,11 +986,10 @@ function AgentDashboard({ user, onLogout }) {
 
               <button
                 onClick={() => setActiveDeviceTab('contacts')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition ${
-                  activeDeviceTab === 'contacts'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-white'
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition ${activeDeviceTab === 'contacts'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:text-white'
+                  }`}
               >
                 <Users size={14} />
                 <span>Contacts List ({deviceData?.contacts?.length || 0})</span>
@@ -1021,8 +1103,8 @@ function AgentDashboard({ user, onLogout }) {
                   <p className="text-xs text-slate-500 font-medium">Initiate outbound calls directly to registered clients</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setShowCustomersModal(false)} 
+              <button
+                onClick={() => setShowCustomersModal(false)}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold transition cursor-pointer"
               >
                 ✕
@@ -1079,8 +1161,8 @@ function AgentDashboard({ user, onLogout }) {
                   <p className="text-xs text-slate-500 font-medium">Direct WebRTC audio & video call bridge</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setShowOutboundCallModal(false)} 
+              <button
+                onClick={() => setShowOutboundCallModal(false)}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold transition cursor-pointer"
               >
                 ✕
@@ -1132,8 +1214,8 @@ function AgentDashboard({ user, onLogout }) {
                   <p className="text-xs text-slate-500 font-medium">Report serving issue or inconvenience to Admin</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setShowEscalationModal(false)} 
+              <button
+                onClick={() => setShowEscalationModal(false)}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold transition cursor-pointer"
               >
                 ✕
@@ -1210,6 +1292,51 @@ function AgentDashboard({ user, onLogout }) {
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer"
               >
                 Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Incoming Call Transfer Request Modal */}
+      {incomingTransferRequest && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-scale">
+          <div className="w-full max-w-md bg-white p-6 rounded-3xl border border-blue-200 shadow-2xl space-y-5 text-slate-900 relative">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center font-bold text-xl shrink-0">
+                <ArrowRightLeft size={24} />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">Incoming Call Transfer</h3>
+                <p className="text-xs text-slate-500 font-medium">An agent wants to transfer a live customer call to you</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-slate-500">From Agent:</span>
+                <span className="font-bold text-slate-900">{incomingTransferRequest.fromAgentName}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-slate-500">Customer Name:</span>
+                <span className="font-bold text-blue-700">{incomingTransferRequest.customerName}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                onClick={handleRejectTransfer}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <X size={16} />
+                <span>Decline</span>
+              </button>
+              <button
+                onClick={handleAcceptTransfer}
+                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-md shadow-emerald-200 flex items-center justify-center gap-1.5 active:scale-98"
+              >
+                <Phone size={16} />
+                <span>Accept Transfer</span>
               </button>
             </div>
           </div>

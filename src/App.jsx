@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { setUser, logoutUser, selectUser, selectAuthLoading } from './store/slices/authSlice';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
@@ -23,10 +25,21 @@ const ProtectedRoute = ({ user, loading, children }) => {
   return children;
 };
 
+
 function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const reduxUser = useSelector(selectUser);
+  const reduxLoading = useSelector(selectAuthLoading);
+
+  const [user, setLocalUser] = useState(null);
+  const [loading, setLocalLoading] = useState(true);
   const { registerUser, isConnected } = useSocket();
+
+  // Helper to sync both local and Redux auth state
+  const updateAuthUser = (userData) => {
+    setLocalUser(userData);
+    dispatch(setUser(userData));
+  };
 
   // Check auth state on mount
   useEffect(() => {
@@ -35,17 +48,17 @@ function App() {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
-          setUser(data.user);
+          updateAuthUser(data.user);
           // Register the user on the socket server
           registerUser(data.user.id, data.user.role);
         } else {
-          setUser(null);
+          updateAuthUser(null);
         }
       } catch (err) {
         console.error('Auth verification error:', err);
-        setUser(null);
+        updateAuthUser(null);
       } finally {
-        setLoading(false);
+        setLocalLoading(false);
       }
     };
     checkAuth();
@@ -61,35 +74,29 @@ function App() {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
-      setUser(null);
+      setLocalUser(null);
+      dispatch(logoutUser());
     } catch (err) {
       console.error('Logout error:', err);
     }
   };
 
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route 
-          path="/login" 
-          element={user ? <Navigate to="/" replace /> : <Login onLoginSuccess={(userData) => setUser(userData)} />} 
-        />
-        <Route 
-          path="/register" 
-          element={user ? <Navigate to="/" replace /> : <Register />} 
-        />
-        
+        <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login onLoginSuccess={(userData) => updateAuthUser(userData)} />} />
+        <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
+
         {/* Main Dashboard Route Auto-Dispatched by User Role */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute user={user} loading={loading}>
-              {user?.role === 'Super Admin' && <SuperAdminDashboard user={user} onLogout={handleLogout} />}
-              {user?.role === 'Admin' && <AdminDashboard user={user} onLogout={handleLogout} />}
-              {user?.role === 'Agent' && <AgentDashboard user={user} onLogout={handleLogout} />}
-              {user?.role === 'Customer' && <CustomerDashboard user={user} onLogout={handleLogout} />}
-            </ProtectedRoute>
-          }
+        <Route path="/" element={
+          <ProtectedRoute user={user} loading={loading}>
+            {user?.role === 'Super Admin' && <SuperAdminDashboard user={user} onLogout={handleLogout} />}
+            {user?.role === 'Admin' && <AdminDashboard user={user} onLogout={handleLogout} />}
+            {user?.role === 'Agent' && <AgentDashboard user={user} onLogout={handleLogout} />}
+            {user?.role === 'Customer' && <CustomerDashboard user={user} onLogout={handleLogout} />}
+          </ProtectedRoute>
+        }
         />
 
         {/* Fallback redirect */}

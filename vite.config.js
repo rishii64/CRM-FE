@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const targetUrl = env.VITE_BACKEND_URL || 'https://crm-be-three.vercel.app';
+  const targetUrl = env.VITE_BACKEND_URL;
 
   return {
     plugins: [react()],

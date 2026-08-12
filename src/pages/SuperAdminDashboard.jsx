@@ -41,9 +41,28 @@ function SuperAdminDashboard({ user, onLogout }) {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 5000);
+    const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    socket.on('call-initiated', () => fetchData());
+    socket.on('call-started', () => fetchData());
+    socket.on('call-ended', (data) => {
+      if (data && (data.callId || data.roomId)) {
+        setActiveCalls((prev) => prev.filter((c) => c.id !== data.callId && c.roomId !== data.roomId && c.id !== Number(data.callId)));
+      }
+      fetchData();
+    });
+
+    return () => {
+      socket.off('call-initiated');
+      socket.off('call-started');
+      socket.off('call-ended');
+    };
+  }, [socket, isConnected]);
 
   // Handle Create Admin
   const handleCreateAdmin = async (e) => {
@@ -120,7 +139,7 @@ function SuperAdminDashboard({ user, onLogout }) {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              Zentelex <span className="text-purple-700 text-xs py-0.5 px-2 bg-purple-50 rounded-full font-bold border border-purple-200">Root Super Admin</span>
+              ZenSupportX <span className="text-purple-700 text-xs py-0.5 px-2 bg-purple-50 rounded-full font-bold border border-purple-200">Root Super Admin</span>
             </h1>
             <p className="text-xs text-slate-500 font-medium">Root User: {user.name} ({user.userId})</p>
           </div>
