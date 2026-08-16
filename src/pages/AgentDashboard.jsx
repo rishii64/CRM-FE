@@ -7,7 +7,7 @@ import {
   Folder, Camera, Users, Lock, Eye, X, AlertCircle
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import { authFetch } from '../config/api';
+import { getApiUrl, authFetch } from '../config/api';
 
 function AgentDashboard({ user, onLogout }) {
   const { theme, toggleTheme } = useTheme();
@@ -467,13 +467,13 @@ function AgentDashboard({ user, onLogout }) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Header bar */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-xs shrink-0">
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 sm:py-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4 shadow-xs shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-emerald-100 text-emerald-700 font-extrabold rounded-xl flex items-center justify-center text-lg">
+          <div className="w-10 h-10 bg-emerald-100 text-emerald-700 font-extrabold rounded-xl flex items-center justify-center text-lg shrink-0">
             ZT
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
               ZenSupportX <span className="text-emerald-700 font-bold text-xs py-0.5 px-2 bg-emerald-50 rounded-full border border-emerald-200">Agent Workspace</span>
             </h1>
             <p className="text-xs text-slate-500 font-medium">Agent: {user.name} ({user.agentCode || user.userId}) • {user.department?.name || 'Technical Support'}</p>
@@ -481,64 +481,68 @@ function AgentDashboard({ user, onLogout }) {
         </div>
 
         {/* Action Buttons & Status Toggles */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              fetchRegisteredCustomers();
-              setShowCustomersModal(true);
-            }}
-            className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-          >
-            <Users size={14} />
-            <span>Registered Customers</span>
-          </button>
-
-          <button
-            onClick={() => setShowOutboundCallModal(true)}
-            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-          >
-            <Phone size={14} />
-            <span>Call Customer</span>
-          </button>
-
-          <button
-            onClick={() => setShowEscalationModal(true)}
-            className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-          >
-            <ShieldAlert size={14} className="text-amber-600" />
-            <span>Escalation Form</span>
-          </button>
-
-          <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-1 gap-1">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 w-full md:w-auto">
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <button
-              onClick={() => handleToggleAvailability('Available')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${availability === 'Available'
-                ? 'bg-emerald-600 text-white shadow-xs font-bold'
-                : 'text-slate-600 hover:text-emerald-700'
-                }`}
+              onClick={() => {
+                fetchRegisteredCustomers();
+                setShowCustomersModal(true);
+              }}
+              className="px-2.5 sm:px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
             >
-              <Power size={12} />
-              Available
+              <Users size={14} className="shrink-0" />
+              <span className="truncate">Customers</span>
             </button>
+
             <button
-              onClick={() => handleToggleAvailability('Offline')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${availability === 'Offline'
-                ? 'bg-red-600 text-white shadow-xs font-bold'
-                : 'text-slate-600 hover:text-red-700'
-                }`}
+              onClick={() => setShowOutboundCallModal(true)}
+              className="px-2.5 sm:px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
             >
-              <Power size={12} />
-              Go Offline
+              <Phone size={14} className="shrink-0" />
+              <span className="truncate">Call Customer</span>
+            </button>
+
+            <button
+              onClick={() => setShowEscalationModal(true)}
+              className="col-span-2 sm:col-span-1 px-2.5 sm:px-3 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <ShieldAlert size={14} className="text-amber-600 shrink-0" />
+              <span className="truncate">Escalation Form</span>
             </button>
           </div>
 
-          <button
-            onClick={onLogout}
-            className="p-2.5 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-xl text-slate-600 hover:text-red-700 transition cursor-pointer"
-            title="Log Out"
-          >
-            <Power size={18} />
-          </button>
+          <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
+            <div className="flex-1 sm:flex-initial flex items-center bg-slate-100 border border-slate-200 rounded-xl p-1 gap-1">
+              <button
+                onClick={() => handleToggleAvailability('Available')}
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${availability === 'Available'
+                  ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                  : 'text-slate-600 hover:text-emerald-700'
+                  }`}
+              >
+                <Power size={12} />
+                Available
+              </button>
+              <button
+                onClick={() => handleToggleAvailability('Offline')}
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${availability === 'Offline'
+                  ? 'bg-red-600 text-white shadow-xs font-bold'
+                  : 'text-slate-600 hover:text-red-700'
+                  }`}
+              >
+                <Power size={12} />
+                Go Offline
+              </button>
+            </div>
+
+            <button
+              onClick={onLogout}
+              className="p-2.5 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-xl text-slate-600 hover:text-red-700 transition cursor-pointer shrink-0"
+              title="Log Out"
+            >
+              <Power size={18} />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -762,7 +766,7 @@ function AgentDashboard({ user, onLogout }) {
                             }`}>
                             {msg.messageType === 'File' ? (
                               <a
-                                href={msg.fileUrl}
+                                href={getApiUrl(msg.fileUrl)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-2 underline hover:text-blue-200 font-bold"

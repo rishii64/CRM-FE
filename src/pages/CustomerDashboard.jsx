@@ -587,7 +587,7 @@ function CustomerDashboard({ user, onLogout }) {
                         }`}>
                           {msg.messageType === 'File' ? (
                             <a
-                              href={msg.fileUrl}
+                              href={getApiUrl(msg.fileUrl)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-2 underline hover:text-blue-200 font-bold"

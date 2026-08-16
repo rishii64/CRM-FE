@@ -133,13 +133,13 @@ function SuperAdminDashboard({ user, onLogout }) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Top Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-xs">
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-purple-100 text-purple-700 font-extrabold rounded-xl flex items-center justify-center text-lg">
+          <div className="w-10 h-10 bg-purple-100 text-purple-700 font-extrabold rounded-xl flex items-center justify-center text-lg shrink-0">
             SA
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
               ZenSupportX <span className="text-purple-700 text-xs py-0.5 px-2 bg-purple-50 rounded-full font-bold border border-purple-200">Root Super Admin</span>
             </h1>
             <p className="text-xs text-slate-500 font-medium">Root User: {user.name} ({user.userId})</p>
@@ -158,7 +158,7 @@ function SuperAdminDashboard({ user, onLogout }) {
       </header>
 
       {/* Main Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         {message && (
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex justify-between items-center shadow-xs">
             <span>{message}</span>
@@ -167,7 +167,7 @@ function SuperAdminDashboard({ user, onLogout }) {
         )}
 
         {/* System Overview Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
             <div className="p-3.5 bg-purple-50 text-purple-600 rounded-xl font-bold">
               <Shield size={24} />
@@ -201,25 +201,25 @@ function SuperAdminDashboard({ user, onLogout }) {
 
         {/* Section 1: Admin Management */}
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Shield className="text-purple-600" size={20} />
-                Admin Account Management
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Shield className="text-purple-600 shrink-0" size={20} />
+                <span>Admin Account Management</span>
               </h2>
               <p className="text-xs text-slate-500">Root Super Admin exclusive control for creating and managing Admin credentials</p>
             </div>
             <button
               onClick={() => setShowCreateAdminModal(true)}
-              className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-sm cursor-pointer"
+              className="w-full sm:w-auto shrink-0 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
             >
               <UserPlus size={16} />
               <span>Create New Admin</span>
             </button>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <table className="w-full text-left text-xs">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto w-full">
+            <table className="w-full text-left text-xs min-w-[600px]">
               <thead className="bg-slate-100/80 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
                 <tr>
                   <th className="p-4">Admin User ID</th>

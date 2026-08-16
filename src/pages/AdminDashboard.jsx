@@ -414,20 +414,20 @@ function AdminDashboard({ user, onLogout }) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Header Bar */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-xs">
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 sm:py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 text-blue-700 font-extrabold rounded-xl flex items-center justify-center text-lg">
+          <div className="w-10 h-10 bg-blue-100 text-blue-700 font-extrabold rounded-xl flex items-center justify-center text-lg shrink-0">
             AD
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
               ZenSupportX <span className="text-blue-700 text-xs py-0.5 px-2 bg-blue-50 rounded-full font-bold border border-blue-200">Operations Admin</span>
             </h1>
             <p className="text-xs text-slate-500 font-medium">Admin: {user.name} ({user.userId})</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between sm:justify-end gap-3">
           {/* Live Calls & Queue Notification Counter Badge */}
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-bold text-red-700 shadow-xs">
             <span className="relative flex h-2.5 w-2.5">
@@ -439,7 +439,7 @@ function AdminDashboard({ user, onLogout }) {
 
           <button
             onClick={onLogout}
-            className="p-2.5 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-xl text-slate-600 hover:text-red-700 transition cursor-pointer"
+            className="p-2.5 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-xl text-slate-600 hover:text-red-700 transition cursor-pointer shrink-0"
             title="Log Out"
           >
             <Power size={18} />
@@ -448,7 +448,7 @@ function AdminDashboard({ user, onLogout }) {
       </header>
 
       {/* Main Content Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
         {/* Unified System Notification Banner */}
         {message && (
           <div className="p-4 bg-emerald-50/90 border border-emerald-200 rounded-2xl shadow-xs flex items-center justify-between transition-all">
@@ -474,7 +474,7 @@ function AdminDashboard({ user, onLogout }) {
 
         {/* Unified Real-time Escalation Toast Banner */}
         {escalationToast && (
-          <div className="p-4 bg-amber-50/90 border border-amber-200 rounded-2xl shadow-md flex items-center justify-between transition-all animate-pulse">
+          <div className="p-4 bg-amber-50/90 border border-amber-200 rounded-2xl shadow-md flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 transition-all animate-pulse">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-amber-100 text-amber-800 rounded-xl flex items-center justify-center font-extrabold shrink-0">
                 <ShieldAlert size={18} />
@@ -491,7 +491,7 @@ function AdminDashboard({ user, onLogout }) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 self-end sm:self-auto">
               <button
                 onClick={() => {
                   setSelectedEscalation(escalationToast);
@@ -514,9 +514,9 @@ function AdminDashboard({ user, onLogout }) {
         )}
 
         {/* Top Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-            <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl font-bold">
+            <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl font-bold shrink-0">
               <Users size={22} />
             </div>
             <div>
@@ -526,7 +526,7 @@ function AdminDashboard({ user, onLogout }) {
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-            <div className="p-3.5 bg-blue-50 text-blue-600 rounded-xl font-bold">
+            <div className="p-3.5 bg-blue-50 text-blue-600 rounded-xl font-bold shrink-0">
               <UserPlus size={22} />
             </div>
             <div>
@@ -536,7 +536,7 @@ function AdminDashboard({ user, onLogout }) {
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-            <div className="p-3.5 bg-red-50 text-red-600 rounded-xl font-bold">
+            <div className="p-3.5 bg-red-50 text-red-600 rounded-xl font-bold shrink-0">
               <Video size={22} />
             </div>
             <div>
@@ -553,7 +553,7 @@ function AdminDashboard({ user, onLogout }) {
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-            <div className="p-3.5 bg-amber-50 text-amber-600 rounded-xl font-bold">
+            <div className="p-3.5 bg-amber-50 text-amber-600 rounded-xl font-bold shrink-0">
               <AlertTriangle size={22} />
             </div>
             <div>
@@ -564,7 +564,7 @@ function AdminDashboard({ user, onLogout }) {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 space-x-6">
+        <div className="flex border-b border-slate-200 space-x-4 sm:space-x-6 overflow-x-auto whitespace-nowrap pb-0.5">
           <button
             onClick={() => setActiveTab('agents')}
             className={`pb-3 text-xs font-bold transition flex items-center gap-2 border-b-2 cursor-pointer ${
@@ -634,22 +634,22 @@ function AdminDashboard({ user, onLogout }) {
         {/* Tab 1: Manage Agents */}
         {activeTab === 'agents' && (
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Agent Directory & Management</h2>
                 <p className="text-xs text-slate-500">Create new agents and manage activation status</p>
               </div>
               <button
                 onClick={() => setShowCreateAgentModal(true)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-xs cursor-pointer"
+                className="w-full sm:w-auto shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
               >
                 <UserPlus size={16} />
                 <span>Create New Agent</span>
               </button>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <table className="w-full text-left text-xs">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto w-full">
+              <table className="w-full text-left text-xs min-w-[650px]">
                 <thead className="bg-slate-100/80 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
                   <tr>
                     <th className="p-4">Agent Code</th>
@@ -712,8 +712,8 @@ function AdminDashboard({ user, onLogout }) {
               <p className="text-xs text-slate-500">View permanent Customer-Agent mappings and reassign agents</p>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <table className="w-full text-left text-xs">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto w-full">
+              <table className="w-full text-left text-xs min-w-[650px]">
                 <thead className="bg-slate-100/80 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
                   <tr>
                     <th className="p-4">Customer User ID</th>
@@ -1043,8 +1043,8 @@ function AdminDashboard({ user, onLogout }) {
               <p className="text-xs text-slate-500">Enterprise security and action audit record</p>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden max-h-[450px] overflow-y-auto">
-              <table className="w-full text-left text-xs">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto w-full max-h-[450px]">
+              <table className="w-full text-left text-xs min-w-[600px]">
                 <thead className="bg-slate-100/80 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 sticky top-0">
                   <tr>
                     <th className="p-4">Timestamp</th>
@@ -1076,8 +1076,8 @@ function AdminDashboard({ user, onLogout }) {
               <p className="text-xs text-slate-500">Historical call session records with exact Date & Time</p>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden max-h-[500px] overflow-y-auto">
-              <table className="w-full text-left text-xs">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-x-auto w-full max-h-[500px]">
+              <table className="w-full text-left text-xs min-w-[700px]">
                 <thead className="bg-slate-100/80 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 sticky top-0">
                   <tr>
                     <th className="p-4">Date & Time</th>

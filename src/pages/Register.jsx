@@ -99,12 +99,12 @@ function Register() {
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-100/40 rounded-full blur-[100px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-indigo-100/40 rounded-full blur-[100px] pointer-events-none"></div>
 
-      <div className="w-full max-w-md bg-white p-8 rounded-3xl border border-slate-200 shadow-xl relative z-10 space-y-5">
+      <div className="w-full max-w-md bg-white p-5 sm:p-8 rounded-3xl border border-slate-200 shadow-xl relative z-10 space-y-4 sm:space-y-5 my-6">
         <div className="text-center">
           <div className="mx-auto w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-3 font-bold">
             <UserPlus size={26} />
           </div>
-          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Customer Registration
           </h2>
           <p className="text-slate-500 mt-1 text-xs font-medium">Create your account with optional Agent ID mapping</p>

@@ -663,7 +663,7 @@ export const WebRtcProvider = ({ children }) => {
     } else {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
         alert(
-          'Screen sharing requires testing on localhost or an HTTPS connection.\n\nBrowsers restrict mediaDevices.getDisplayMedia when accessed over plain HTTP IP addresses.'
+          'Screen sharing is available on Desktop web browsers (Windows/macOS Chrome, Edge, Safari, Firefox).\n\nMobile web browsers (iOS/Android) restrict screen recording for security reasons.'
         );
         setIsScreenSharing(false);
         return;
