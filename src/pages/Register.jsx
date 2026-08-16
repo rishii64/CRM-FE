@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, User, Lock, Phone, CheckCircle2, ShieldAlert, Key, Eye, EyeOff } from 'lucide-react';
+import { getApiUrl, authFetch } from '../config/api';
 
 function Register() {
   const [name, setName] = useState('');
@@ -25,7 +26,7 @@ function Register() {
 
     setValidating(true);
     try {
-      const res = await fetch(`/api/auth/validate-agent/${encodeURIComponent(trimmed)}`);
+      const res = await authFetch(`/api/auth/validate-agent/${encodeURIComponent(trimmed)}`);
       const data = await res.json();
       if (res.ok && data.valid) {
         setAgentValidation({
@@ -70,7 +71,7 @@ function Register() {
         agentId: agentId.trim() || undefined,
       };
 
-      const res = await fetch('/api/auth/register', {
+      const res = await authFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

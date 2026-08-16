@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, User, Lock, ShieldAlert, Eye, EyeOff } from 'lucide-react';
+import { getApiUrl, authFetch } from '../config/api';
 
 function Login({ onLoginSuccess }) {
   const [identifier, setIdentifier] = useState('');
@@ -19,7 +20,7 @@ function Login({ onLoginSuccess }) {
     const loginPass = customPass || password;
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await authFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier: loginId, password: loginPass }),

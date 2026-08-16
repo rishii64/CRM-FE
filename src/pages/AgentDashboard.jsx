@@ -7,6 +7,7 @@ import {
   Folder, Camera, Users, Lock, Eye, X, AlertCircle
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { authFetch } from '../config/api';
 
 function AgentDashboard({ user, onLogout }) {
   const { theme, toggleTheme } = useTheme();
@@ -69,7 +70,7 @@ function AgentDashboard({ user, onLogout }) {
   // Handle Availability Toggle
   const handleToggleAvailability = async (newStatus) => {
     try {
-      const res = await fetch('/api/agents/status', {
+      const res = await authFetch('/api/agents/status', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -114,7 +115,7 @@ function AgentDashboard({ user, onLogout }) {
 
       // Load previous chat history (if any)
       try {
-        const chatRes = await fetch(`/api/chat/${callData.callId}`);
+        const chatRes = await authFetch(`/api/chat/${callData.callId}`);
         if (chatRes.ok) {
           setChatMessages(await chatRes.json());
         }
@@ -182,7 +183,7 @@ function AgentDashboard({ user, onLogout }) {
     const { transferId, roomId } = incomingTransferRequest;
     socket.emit('join-room', { roomId });
     try {
-      await fetch(`/api/calls/transfer/${transferId}/respond`, {
+      await authFetch(`/api/calls/transfer/${transferId}/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ response: 'Accepted' }),
@@ -198,7 +199,7 @@ function AgentDashboard({ user, onLogout }) {
     if (!incomingTransferRequest) return;
     const { transferId } = incomingTransferRequest;
     try {
-      await fetch(`/api/calls/transfer/${transferId}/respond`, {
+      await authFetch(`/api/calls/transfer/${transferId}/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ response: 'Rejected' }),
@@ -238,7 +239,7 @@ function AgentDashboard({ user, onLogout }) {
     if (!typedMessage.trim() || !activeCall) return;
 
     try {
-      const res = await fetch(`/api/chat/${activeCall.callId}`, {
+      const res = await authFetch(`/api/chat/${activeCall.callId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageType: 'Text', content: typedMessage }),
@@ -264,7 +265,7 @@ function AgentDashboard({ user, onLogout }) {
     setLoadingDeviceData(true);
 
     try {
-      const res = await fetch(`/api/calls/${activeCall.callId}/device-data`);
+      const res = await authFetch(`/api/calls/${activeCall.callId}/device-data`);
       if (res.ok) {
         const data = await res.json();
         setDeviceData(data.deviceData);
@@ -291,16 +292,16 @@ function AgentDashboard({ user, onLogout }) {
 
     try {
       // 1. Upload to storage
-      const uploadRes = await fetch(`/api/chat/${activeCall.callId}/upload`, {
+      const uploadRes = await authFetch(`/api/chat/${activeCall.callId}/upload`, {
         method: 'POST',
         body: formData,
       });
 
-      if (!uploadRes.ok) throw new Error('Upload failed');
+      if (!uploadRes.ok) throw new Error('File upload failed');
       const uploadData = await uploadRes.json();
 
       // 2. Save Chat Message in DB
-      const saveRes = await fetch(`/api/chat/${activeCall.callId}`, {
+      const saveRes = await authFetch(`/api/chat/${activeCall.callId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -324,7 +325,7 @@ function AgentDashboard({ user, onLogout }) {
   // Fetch online available agents for live call transfer
   const openTransferModal = async () => {
     try {
-      const res = await fetch('/api/agents/list');
+      const res = await authFetch('/api/agents/list');
       if (res.ok) {
         const list = await res.json();
         // Exclude self and list only 'Available' status agents
@@ -343,7 +344,7 @@ function AgentDashboard({ user, onLogout }) {
     setTransferStatusMsg('Waiting for target agent to accept...');
 
     try {
-      const res = await fetch('/api/calls/transfer', {
+      const res = await authFetch('/api/calls/transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -364,7 +365,7 @@ function AgentDashboard({ user, onLogout }) {
     if (!activeCall) return;
 
     try {
-      const res = await fetch(`/api/calls/${activeCall.callId}/end`, {
+      const res = await authFetch(`/api/calls/${activeCall.callId}/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ disconnectReason: callNotes || 'Agent completed call' }),
@@ -391,7 +392,7 @@ function AgentDashboard({ user, onLogout }) {
   // Fetch registered customers list
   const fetchRegisteredCustomers = async () => {
     try {
-      const res = await fetch('/api/agents/customers');
+      const res = await authFetch('/api/agents/customers');
       if (res.ok) setRegisteredCustomers(await res.json());
     } catch (err) {
       console.error('Error fetching registered customers:', err);
@@ -404,7 +405,7 @@ function AgentDashboard({ user, onLogout }) {
     if (!targetPhone.trim()) return;
 
     try {
-      const res = await fetch('/api/agents/call-by-phone', {
+      const res = await authFetch('/api/agents/call-by-phone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: targetPhone.trim() }),
@@ -439,7 +440,7 @@ function AgentDashboard({ user, onLogout }) {
   const handleCreateEscalation = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/agents/escalations', {
+      const res = await authFetch('/api/agents/escalations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

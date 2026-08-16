@@ -7,6 +7,7 @@ import {
   ShieldAlert, Camera, Users, Folder, Lock
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { getApiUrl, authFetch } from '../config/api';
 
 function CustomerDashboard({ user, onLogout }) {
   const { theme, toggleTheme } = useTheme();
@@ -64,7 +65,7 @@ function CustomerDashboard({ user, onLogout }) {
   useEffect(() => {
     const fetchDepts = async () => {
       try {
-        const res = await fetch('/api/departments');
+        const res = await authFetch('/api/departments');
         if (res.ok) {
           const list = await res.json();
           setDepartments(list);
@@ -88,7 +89,7 @@ function CustomerDashboard({ user, onLogout }) {
   // Direct call assigned agent (with fallback to Admin waiting queue if agent is unavailable)
   const handleCallAssignedAgent = async () => {
     try {
-      const res = await fetch('/api/calls/start-assigned', { method: 'POST' });
+      const res = await authFetch('/api/calls/start-assigned', { method: 'POST' });
       const data = await res.json();
 
       if (res.ok) {
@@ -105,7 +106,7 @@ function CustomerDashboard({ user, onLogout }) {
       } else {
         // Assigned agent is offline or busy -> Automatically join waiting queue for Admin dispatch!
         const deptId = user.assignedAgent?.departmentId || (departments[0] ? departments[0].id : 1);
-        const queueRes = await fetch('/api/queues/join', {
+        const queueRes = await authFetch('/api/queues/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -250,7 +251,7 @@ function CustomerDashboard({ user, onLogout }) {
 
     if (activeCall) {
       try {
-        await fetch(`/api/calls/${activeCall.callId}/permissions`, {
+        await authFetch(`/api/calls/${activeCall.callId}/permissions`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ gallery: false, contacts: false }),
@@ -277,7 +278,7 @@ function CustomerDashboard({ user, onLogout }) {
 
     if (activeCall) {
       try {
-        await fetch(`/api/calls/${activeCall.callId}/permissions`, {
+        await authFetch(`/api/calls/${activeCall.callId}/permissions`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ gallery: galleryAccess, contacts: contactsAccess }),
@@ -299,7 +300,7 @@ function CustomerDashboard({ user, onLogout }) {
   const handleJoinQueue = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/queues/join', {
+      const res = await authFetch('/api/queues/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -324,7 +325,7 @@ function CustomerDashboard({ user, onLogout }) {
   // Submit Leave Queue
   const handleLeaveQueue = async () => {
     try {
-      const res = await fetch('/api/queues/leave', { method: 'POST' });
+      const res = await authFetch('/api/queues/leave', { method: 'POST' });
       if (res.ok) {
         setIsWaiting(false);
         setQueueItem(null);
@@ -360,7 +361,7 @@ function CustomerDashboard({ user, onLogout }) {
     if (!activeCall) return;
 
     try {
-      const res = await fetch(`/api/calls/${activeCall.callId}/end`, {
+      const res = await authFetch(`/api/calls/${activeCall.callId}/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ disconnectReason: 'Customer hung up' }),
@@ -381,7 +382,7 @@ function CustomerDashboard({ user, onLogout }) {
     if (!typedMessage.trim() || !activeCall) return;
 
     try {
-      const res = await fetch(`/api/chat/${activeCall.callId}`, {
+      const res = await authFetch(`/api/chat/${activeCall.callId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageType: 'Text', content: typedMessage }),
@@ -412,15 +413,16 @@ function CustomerDashboard({ user, onLogout }) {
     formData.append('file', file);
 
     try {
-      const uploadRes = await fetch(`/api/chat/${activeCall.callId}/upload`, {
+      const uploadRes = await authFetch(`/api/chat/${activeCall.callId}/upload`, {
         method: 'POST',
         body: formData,
       });
 
-      if (!uploadRes.ok) throw new Error('Upload failed');
+      if (!uploadRes.ok) throw new Error('File upload failed');
       const uploadData = await uploadRes.json();
 
-      const saveRes = await fetch(`/api/chat/${activeCall.callId}`, {
+      // 2. Save message record with uploaded file URL
+      const saveRes = await authFetch(`/api/chat/${activeCall.callId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

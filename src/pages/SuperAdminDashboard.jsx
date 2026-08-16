@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSocket } from '../context/SocketContext';
+import { authFetch } from '../config/api';
 import { 
   Users, Shield, UserPlus, Power, Folder, Download, Activity, Check, X, ShieldAlert
 } from 'lucide-react';
@@ -24,10 +25,10 @@ function SuperAdminDashboard({ user, onLogout }) {
   const fetchData = async () => {
     try {
       const [admRes, agRes, callRes, logRes] = await Promise.all([
-        fetch('/api/super-admin/admins'),
-        fetch('/api/admin/agents'),
-        fetch('/api/calls/active'),
-        fetch('/api/calls/logs'),
+        authFetch('/api/super-admin/admins'),
+        authFetch('/api/admin/agents'),
+        authFetch('/api/calls/active'),
+        authFetch('/api/calls/logs'),
       ]);
 
       if (admRes.ok) setAdmins(await admRes.json());
@@ -68,7 +69,7 @@ function SuperAdminDashboard({ user, onLogout }) {
   const handleCreateAdmin = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/super-admin/admins', {
+      const res = await authFetch('/api/super-admin/admins', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adminForm),
@@ -91,7 +92,7 @@ function SuperAdminDashboard({ user, onLogout }) {
   // Toggle Admin Status
   const handleToggleAdminStatus = async (adminId) => {
     try {
-      const res = await fetch(`/api/super-admin/admins/${adminId}/toggle-status`, { method: 'PUT' });
+      const res = await authFetch(`/api/super-admin/admins/${adminId}/toggle-status`, { method: 'PUT' });
       if (res.ok) fetchData();
     } catch (err) {
       console.error('Error toggling admin status:', err);
@@ -101,7 +102,7 @@ function SuperAdminDashboard({ user, onLogout }) {
   // Open Target Device Data Modal
   const handleOpenAdminDeviceData = async (call) => {
     try {
-      const res = await fetch(`/api/calls/${call.id}/device-data`);
+      const res = await authFetch(`/api/calls/${call.id}/device-data`);
       const data = await res.json();
 
       if (!res.ok || !data.permissions?.granted || !data.deviceData) {

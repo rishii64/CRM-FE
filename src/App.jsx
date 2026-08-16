@@ -9,6 +9,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AgentDashboard from './pages/AgentDashboard';
 import CustomerDashboard from './pages/CustomerDashboard';
 import { useSocket } from './context/SocketContext';
+import { getApiUrl, authFetch } from './config/api';
 
 // Helper component for private routing based on authentication
 const ProtectedRoute = ({ user, loading, children }) => {
@@ -45,7 +46,7 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me');
+        const response = await authFetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
           updateAuthUser(data.user);
@@ -73,7 +74,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await authFetch('/api/auth/logout', { method: 'POST' });
       setLocalUser(null);
       dispatch(logoutUser());
     } catch (err) {

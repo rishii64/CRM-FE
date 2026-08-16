@@ -3,6 +3,7 @@ import {
   Users, UserPlus, Video, AlertTriangle, FileText, Activity, Power, ArrowRightLeft, CheckCircle, PhoneCall, X, ShieldAlert, Filter, Clock, Eye, Mic, MicOff
 } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
+import { authFetch } from '../config/api';
 
 const ICE_SERVERS = {
   iceServers: [
@@ -67,14 +68,14 @@ function AdminDashboard({ user, onLogout }) {
     setLoading(true);
     try {
       const [agRes, custRes, callRes, escRes, logRes, deptRes, callLogRes, queueRes] = await Promise.all([
-        fetch('/api/admin/agents'),
-        fetch('/api/admin/customers'),
-        fetch('/api/calls/active'),
-        fetch('/api/admin/escalations'),
-        fetch('/api/admin/audit-logs'),
-        fetch('/api/departments'),
-        fetch('/api/admin/call-logs'),
-        fetch('/api/queue/active'),
+        authFetch('/api/admin/agents'),
+        authFetch('/api/admin/customers'),
+        authFetch('/api/calls/active'),
+        authFetch('/api/admin/escalations'),
+        authFetch('/api/admin/audit-logs'),
+        authFetch('/api/departments'),
+        authFetch('/api/admin/call-logs'),
+        authFetch('/api/queue/active'),
       ]);
 
       if (agRes.ok) setAgents(await agRes.json());
@@ -154,7 +155,7 @@ function AdminDashboard({ user, onLogout }) {
         validStatus = 'In Progress';
       }
 
-      const res = await fetch(`/api/admin/escalations/${escalationId}/status`, {
+      const res = await authFetch(`/api/admin/escalations/${escalationId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -183,7 +184,7 @@ function AdminDashboard({ user, onLogout }) {
   const handleCreateAgent = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/agents', {
+      const res = await authFetch('/api/admin/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(agentForm),
@@ -206,7 +207,7 @@ function AdminDashboard({ user, onLogout }) {
   // Toggle Agent Active / Inactive
   const handleToggleAgent = async (agentId) => {
     try {
-      const res = await fetch(`/api/admin/agents/${agentId}/toggle-status`, { method: 'PUT' });
+      const res = await authFetch(`/api/admin/agents/${agentId}/toggle-status`, { method: 'PUT' });
       if (res.ok) fetchData();
     } catch (err) {
       console.error('Error toggling agent status:', err);
@@ -219,7 +220,7 @@ function AdminDashboard({ user, onLogout }) {
     if (!selectedCustomer || !targetAgentId) return;
 
     try {
-      const res = await fetch(`/api/admin/customers/${selectedCustomer.id}/reassign`, {
+      const res = await authFetch(`/api/admin/customers/${selectedCustomer.id}/reassign`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newAgentId: targetAgentId }),
@@ -245,7 +246,7 @@ function AdminDashboard({ user, onLogout }) {
     if (!selectedQueueItem || !targetAgentId) return;
 
     try {
-      const res = await fetch('/api/queue/assign', {
+      const res = await authFetch('/api/queue/assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ queueId: selectedQueueItem.id, agentId: targetAgentId }),
@@ -1408,7 +1409,7 @@ function AdminDashboard({ user, onLogout }) {
               <button
                 onClick={async () => {
                   if (window.confirm('Are you sure you want to forcefully disconnect this live call?')) {
-                    await fetch(`/api/calls/${bargeInCall.id}/end`, {
+                    await authFetch(`/api/calls/${bargeInCall.id}/end`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ disconnectReason: 'Admin terminated call during barge-in' }),
