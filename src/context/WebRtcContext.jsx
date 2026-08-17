@@ -5,7 +5,6 @@ const WebRtcContext = createContext(null);
 
 export const useWebRtc = () => useContext(WebRtcContext);
 
-// Improved ICE servers with more reliable TURN
 const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -13,7 +12,8 @@ const ICE_SERVERS = {
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
-    // TURN servers - these are more reliable for NAT traversal
+    { urls: 'stun:stun.cloudflare.com:8443' },
+    { urls: 'stun:stun.services.mozilla.com:3478' },
     {
       urls: 'turn:openrelay.metered.ca:80',
       username: 'openrelayproject',
