@@ -530,7 +530,7 @@ export const WebRtcProvider = ({ children }) => {
       if (silentBargeInPeersRef.current.has(adminUserId)) {
         try {
           silentBargeInPeersRef.current.get(adminUserId).close();
-        } catch (e) {}
+        } catch (e) { }
         silentBargeInPeersRef.current.delete(adminUserId);
       }
 
@@ -575,8 +575,8 @@ export const WebRtcProvider = ({ children }) => {
       if (adminUserId && silentBargeInPeersRef.current.has(adminUserId)) {
         try {
           silentBargeInPeersRef.current.get(adminUserId).close();
-        } catch (e) {}
-          silentBargeInPeersRef.current.delete(adminUserId);
+        } catch (e) { }
+        silentBargeInPeersRef.current.delete(adminUserId);
       }
     };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Users, UserPlus, Video, AlertTriangle, FileText, Activity, Power, ArrowRightLeft, CheckCircle, PhoneCall, X, ShieldAlert, Filter, Clock, Eye, Mic, MicOff, Trash2
+  Users, Video, UserPlus,Phone, AlertTriangle, FileText, Activity, Power, ArrowRightLeft, CheckCircle, PhoneCall, X, ShieldAlert, Filter, Clock, Eye, Mic, MicOff, Trash2
 } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { authFetch } from '../config/api';
@@ -583,7 +583,7 @@ function AdminDashboard({ user, onLogout }) {
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
             <div className="p-3.5 bg-red-50 text-red-600 rounded-xl font-bold shrink-0">
-              <Video size={22} />
+              <Phone size={22} />
             </div>
             <div>
               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Live Calls</p>
@@ -908,8 +908,8 @@ function AdminDashboard({ user, onLogout }) {
             {/* Active Live Video Sessions */}
             <div className="space-y-4">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Active Live Video Sessions</h3>
-                <p className="text-xs text-slate-500">Video support calls currently in progress</p>
+                <h3 className="text-base font-bold text-slate-900">Active Live Call Sessions</h3>
+                <p className="text-xs text-slate-500">Agent support calls currently in progress</p>
               </div>
 
               {activeCalls.length > 0 ? (
@@ -950,9 +950,9 @@ function AdminDashboard({ user, onLogout }) {
                 </div>
               ) : (
                 <div className="py-12 text-center text-xs text-slate-500 bg-white rounded-2xl border border-slate-200 shadow-xs">
-                  <Video size={40} className="mx-auto text-slate-300 mb-2" />
+                  <Phone size={40} className="mx-auto text-slate-300 mb-2" />
                   <p className="font-bold text-slate-800 text-sm">No Live Calls Active</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Active video sessions will display here in real time.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Active call sessions will display here in real time.</p>
                 </div>
               )}
             </div>
@@ -1426,22 +1426,22 @@ function AdminDashboard({ user, onLogout }) {
             </div>
 
             {/* Live Media Stream Viewfinder */}
-            <div className="relative bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden h-72 flex items-center justify-center shadow-inner">
+            <div className="relative bg-gradient-to-b from-slate-100 to-white rounded-2xl border border-slate-200 overflow-hidden h-72 flex items-center justify-center shadow-xs">
               <video
                 ref={bargeInVideoElRef}
                 autoPlay
                 playsInline
-                className={`w-full h-full object-contain bg-black ${bargeInHasVideo ? 'block' : 'hidden'}`}
+                className={`w-full h-full object-contain bg-slate-100 ${bargeInHasVideo ? 'block' : 'hidden'}`}
               />
 
               {!bargeInHasVideo && (
                 <div className="text-center space-y-3 p-6">
-                  <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mx-auto text-red-500 animate-pulse">
+                  <div className="w-16 h-16 bg-red-50 text-red-600 border border-red-200 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
                     <Activity size={32} />
                   </div>
                   <div>
-                    <p className="text-sm font-extrabold text-white">Silent Live Call Audio Monitoring</p>
-                    <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1">
+                    <p className="text-sm font-extrabold text-slate-900">Silent Live Call Audio Monitoring</p>
+                    <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1">
                       Listening to live audio call between agent & customer. Live video will stream automatically if customer shares screen.
                     </p>
                   </div>

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { useWebRtc } from '../context/WebRtcContext';
-import { 
-  Video, VideoOff, Mic, MicOff, PhoneOff, Send, Paperclip, 
-  HelpCircle, Clock, Star, MessageSquare, AlertCircle, RefreshCw, Sun, Moon, Monitor, MonitorOff,
+import {
+  Phone, Mic, MicOff, PhoneOff, Send, Paperclip,
+  HelpCircle, Clock, AlertCircle, RefreshCw, Sun, Moon, Monitor, MonitorOff,
   ShieldAlert, Camera, Users, Folder, Lock
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
@@ -36,7 +36,7 @@ function CustomerDashboard({ user, onLogout }) {
   useEffect(() => {
     setAssignedAgent(user.assignedAgent || null);
   }, [user.assignedAgent]);
-  
+
   const [queueItem, setQueueItem] = useState(null);
   const [queuePosition, setQueuePosition] = useState(0);
   const [isWaiting, setIsWaiting] = useState(false);
@@ -54,11 +54,6 @@ function CustomerDashboard({ user, onLogout }) {
     contacts: false,
     granted: false,
   });
-
-  // Feedback states
-  const [showRatingModal, setShowRatingModal] = useState(false);
-  const [rating, setRating] = useState(5);
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   // UI devices state
   const [isMicMuted, setIsMicMuted] = useState(false);
@@ -138,18 +133,52 @@ function CustomerDashboard({ user, onLogout }) {
     }
   };
 
+  // Accept Incoming Outbound Call from Agent
   const handleAcceptIncomingCall = () => {
     if (!incomingCallData) return;
+
+    // Stop waiting in queue if any
+    setIsWaiting(false);
+    setQueueItem(null);
+    setChatMessages([]);
+
+    // Reset device permissions and prompt customer permission modal upon call start
+    setDevicePermissions({ gallery: false, contacts: false, granted: false });
+    setShowPermissionModal(true);
+
+    // Join the signaling room
     socket.emit('join-room', { roomId: incomingCallData.roomId });
+
+    // Save call metadata
     setActiveCall({
       callId: incomingCallData.callId,
       roomId: incomingCallData.roomId,
-      partnerName: incomingCallData.agentName,
+      partnerName: incomingCallData.agentName || 'Support Agent',
       partnerUserId: incomingCallData.agentUserId || incomingCallData.agentId,
       role: 'Customer',
     });
-    setShowPermissionModal(true);
+
     setIncomingCallData(null);
+  };
+
+  // Decline Incoming Outbound Call from Agent
+  const handleDeclineIncomingCall = async () => {
+    if (!incomingCallData) return;
+
+    const callToDecline = incomingCallData;
+    setIncomingCallData(null);
+
+    try {
+      await authFetch(`/api/calls/${callToDecline.callId}/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ disconnectReason: 'Call declined by customer' }),
+      });
+    } catch (err) {
+      console.error('Error declining incoming call:', err);
+    }
+
+    leaveCall();
   };
 
   // Socket routing for call match, incoming signaling, chat messages, and call end
@@ -159,27 +188,17 @@ function CustomerDashboard({ user, onLogout }) {
     // 0. Listen for Outbound incoming calls from Agent
     socket.on('incoming-call', (callData) => {
       console.log('Customer received incoming call:', callData);
-      socket.emit('join-room', { roomId: callData.roomId });
-      setActiveCall({
-        callId: callData.callId,
-        roomId: callData.roomId,
-        partnerName: callData.agentName || 'Support Agent',
-        partnerUserId: callData.agentUserId || callData.agentId,
-        role: 'Customer',
-      });
       setIncomingCallData(callData);
     });
 
     // 1. Listen for call assignment by Super Admin
     socket.on('call-assigned', (callData) => {
       console.log('Call assigned to customer:', callData);
-      
+
       // Stop waiting, join active call
       setIsWaiting(false);
       setQueueItem(null);
       setChatMessages([]);
-      setShowRatingModal(false);
-      setFeedbackSubmitted(false);
 
       // Reset device permissions and prompt customer permission modal upon call start
       setDevicePermissions({ gallery: false, contacts: false, granted: false });
@@ -220,9 +239,8 @@ function CustomerDashboard({ user, onLogout }) {
     // 5. Listen for Partner ending call (disconnecting)
     socket.on('call-ended', () => {
       console.log('Call ended by agent/server');
+      setIncomingCallData(null);
       leaveCall();
-      // Open the rating feedback prompt!
-      setShowRatingModal(true);
     });
 
     // 6. Listen for call transfer / partner changed
@@ -410,7 +428,6 @@ function CustomerDashboard({ user, onLogout }) {
 
       if (res.ok) {
         leaveCall();
-        setShowRatingModal(true);
       }
     } catch (err) {
       console.error('Error ending call:', err);
@@ -484,18 +501,6 @@ function CustomerDashboard({ user, onLogout }) {
     }
   };
 
-  // Submit Feedback / Rating Star
-  const handleSubmitFeedback = async () => {
-    // Simulated database feedback log update
-    setFeedbackSubmitted(true);
-    setTimeout(() => {
-      setShowRatingModal(false);
-      setFeedbackSubmitted(false);
-      // Smoothly redirect customer back to home screen/form reset
-      window.location.href = '/';
-    }, 2000);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Header bar */}
@@ -525,44 +530,44 @@ function CustomerDashboard({ user, onLogout }) {
 
       {/* Main Core viewport */}
       <div className="flex-1 flex overflow-hidden">
-        
+
         {/* If call is active */}
         {activeCall ? (
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            
+
             {/* Left side Call/Streaming screen */}
             <div className="flex-1 flex flex-col p-6 overflow-y-auto">
               <div className="flex-1 flex flex-col gap-4">
-                
+
                 {/* WebRTC Call Viewport */}
-                <div className="relative flex-1 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden min-h-[340px] flex items-center justify-center shadow-2xl">
-                  
+                <div className="relative flex-1 bg-gradient-to-b from-slate-100 to-white rounded-2xl border border-slate-200 overflow-hidden min-h-[340px] flex items-center justify-center shadow-md">
+
                   {/* Clean Audio-Only Call UI */}
                   <div className="flex flex-col items-center justify-center text-center p-8 z-10 space-y-5">
                     <div className="relative">
                       <div className="absolute -inset-3 rounded-full bg-blue-500/20 animate-ping"></div>
                       <div className="absolute -inset-6 rounded-full bg-blue-500/10 animate-pulse"></div>
-                      <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 border-4 border-slate-800 text-white font-extrabold text-2xl flex items-center justify-center shadow-2xl relative">
-                        {activeCall.partnerName ? activeCall.partnerName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase() : 'AG'}
+                      <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 border-4 border-slate-200 text-white font-extrabold text-2xl flex items-center justify-center shadow-2xl relative">
+                        {activeCall.partnerName ? activeCall.partnerName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'AG'}
                       </div>
                     </div>
 
                     <div>
-                      <h3 className="text-xl font-bold text-white tracking-tight">Support Agent: {activeCall.partnerName}</h3>
-                      <p className="text-xs text-blue-400 font-semibold mt-1 flex items-center justify-center gap-1.5">
+                      <h3 className="text-xl font-bold text-slate-900 tracking-tight">Support Agent: {activeCall.partnerName}</h3>
+                      <p className="text-xs text-blue-600 font-semibold mt-1 flex items-center justify-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                         Voice Call Active • Connected to Agent
                       </p>
                     </div>
 
                     {isScreenSharing && (
-                      <div className="bg-blue-500/15 border border-blue-500/30 px-4 py-2 rounded-xl text-xs text-blue-300 font-semibold flex items-center gap-2 animate-pulse">
-                        <Monitor size={16} className="text-blue-400" />
+                      <div className="bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl text-xs text-blue-700 font-semibold flex items-center gap-2 animate-pulse">
+                        <Monitor size={16} className="text-blue-600" />
                         <span>You are currently sharing your screen with {activeCall.partnerName}</span>
                       </div>
                     )}
 
-                    <div className="flex items-center gap-1.5 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800 text-[11px] text-slate-400 font-mono">
+                    <div className="flex items-center gap-1.5 bg-slate-100/90 px-4 py-2 rounded-xl border border-slate-300 text-[11px] text-slate-600 font-mono">
                       <span>Status: {connectionStatus}</span>
                     </div>
                   </div>
@@ -573,9 +578,8 @@ function CustomerDashboard({ user, onLogout }) {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={toggleMute}
-                      className={`p-3 rounded-xl transition cursor-pointer ${
-                        isMicMuted ? 'bg-red-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300'
-                      }`}
+                      className={`p-3 rounded-xl transition cursor-pointer ${isMicMuted ? 'bg-red-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300'
+                        }`}
                       title={isMicMuted ? 'Unmute Audio' : 'Mute Audio'}
                     >
                       {isMicMuted ? <MicOff size={20} /> : <Mic size={20} />}
@@ -583,11 +587,10 @@ function CustomerDashboard({ user, onLogout }) {
 
                     <button
                       onClick={toggleScreenShare}
-                      className={`px-4 py-2.5 rounded-xl transition cursor-pointer text-xs font-bold flex items-center gap-2 ${
-                        isScreenSharing 
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20' 
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
-                      }`}
+                      className={`px-4 py-2.5 rounded-xl transition cursor-pointer text-xs font-bold flex items-center gap-2 ${isScreenSharing
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
+                        }`}
                       title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen with Agent'}
                     >
                       {isScreenSharing ? <MonitorOff size={16} /> : <Monitor size={16} />}
@@ -621,11 +624,10 @@ function CustomerDashboard({ user, onLogout }) {
                     const isMe = msg.senderId === user.id;
                     return (
                       <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                        <div className={`p-3 rounded-xl max-w-[85%] text-xs font-medium ${
-                          isMe 
-                            ? 'bg-blue-600 text-white rounded-br-none shadow-xs' 
-                            : 'bg-slate-100 text-slate-900 border border-slate-200 rounded-bl-none'
-                        }`}>
+                        <div className={`p-3 rounded-xl max-w-[85%] text-xs font-medium ${isMe
+                          ? 'bg-blue-600 text-white rounded-br-none shadow-xs'
+                          : 'bg-slate-100 text-slate-900 border border-slate-200 rounded-bl-none'
+                          }`}>
                           {msg.messageType === 'File' ? (
                             <a
                               href={getApiUrl(msg.fileUrl)}
@@ -662,11 +664,10 @@ function CustomerDashboard({ user, onLogout }) {
                       fileInputRef.current?.click();
                     }
                   }}
-                  className={`p-2.5 rounded-xl transition ${
-                    devicePermissions.granted
-                      ? 'bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer shadow-xs'
-                      : 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed opacity-50'
-                  }`}
+                  className={`p-2.5 rounded-xl transition ${devicePermissions.granted
+                    ? 'bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer shadow-xs'
+                    : 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed opacity-50'
+                    }`}
                   title={devicePermissions.granted ? 'Upload File' : 'File sharing locked (Target device permissions required)'}
                 >
                   <Paperclip size={16} />
@@ -753,11 +754,10 @@ function CustomerDashboard({ user, onLogout }) {
                     <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">Your Assigned Primary Support Agent</span>
                     <h3 className="text-lg font-bold text-slate-900 mt-0.5">{assignedAgent.name}</h3>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
-                    assignedAgent.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${assignedAgent.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                     assignedAgent.status === 'Busy' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                    'bg-slate-100 text-slate-600 border-slate-200'
-                  }`}>
+                      'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}>
                     {assignedAgent.status}
                   </span>
                 </div>
@@ -771,7 +771,7 @@ function CustomerDashboard({ user, onLogout }) {
                     disabled={assignedAgent.status !== 'Available'}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
-                    <Video size={14} />
+                    <Phone size={14} />
                     <span>Call Assigned Agent</span>
                   </button>
                 </div>
@@ -781,10 +781,10 @@ function CustomerDashboard({ user, onLogout }) {
             <div className="w-full max-w-lg bg-white p-8 rounded-2xl border border-slate-200 shadow-md relative z-10">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center font-bold">
-                  <Video size={22} />
+                  <Phone size={22} />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900">Start Support Video Call</h3>
+                  <h3 className="text-2xl font-bold text-slate-900">Start Support Assistance Call</h3>
                   <p className="text-xs text-slate-500 font-medium">Fill in details and connect with a live customer representative</p>
                 </div>
               </div>
@@ -832,11 +832,8 @@ function CustomerDashboard({ user, onLogout }) {
                   ></textarea>
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition duration-200 shadow-lg shadow-blue-600/20 active:scale-95 text-xs flex items-center justify-center gap-2"
-                >
-                  <Video size={16} />
+                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition duration-200 shadow-lg shadow-blue-600/20 active:scale-95 text-xs flex items-center justify-center gap-2" >
+                  <Phone size={16} />
                   Join Waiting Queue
                 </button>
               </form>
@@ -846,66 +843,7 @@ function CustomerDashboard({ user, onLogout }) {
 
       </div>
 
-      {/* Post-Call Rating / Feedback Modal */}
-      {showRatingModal && (
-        <div className="fixed inset-0 z-50 bg-[#000]/70 backdrop-blur-md flex items-center justify-center px-4">
-          <div className="w-full max-w-sm glass-panel p-6 rounded-2xl border border-gray-800 text-center shadow-2xl relative animate-scale">
-            
-            <div className="mx-auto w-12 h-12 bg-blue-600/10 text-blue-400 rounded-xl flex items-center justify-center mb-4">
-              <MessageSquare size={24} />
-            </div>
 
-            <h3 className="text-xl font-bold text-white mb-1">Rate Your Experience</h3>
-            <p className="text-xs text-gray-400 mb-6">
-              Please rate your call experience with ZenSupportX support.
-            </p>
-
-            {feedbackSubmitted ? (
-              <div className="p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-xl text-emerald-300 text-xs flex items-center justify-center gap-2 mb-4">
-                <CheckCircle size={16} />
-                <span>Thank you! Your feedback has been logged.</span>
-              </div>
-            ) : (
-              <div className="space-y-6 mb-4">
-                {/* 5 Star Selection */}
-                <div className="flex justify-center gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setRating(star)}
-                      className="p-1 hover:scale-110 transition"
-                    >
-                      <Star
-                        size={28}
-                        className={`${
-                          star <= rating 
-                            ? 'fill-amber-400 text-amber-400' 
-                            : 'text-gray-600'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={handleSubmitFeedback}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition"
-                >
-                  Submit Rating
-                </button>
-              </div>
-            )}
-
-            <button
-              onClick={() => { setShowRatingModal(false); window.location.href = '/'; }}
-              className="text-xs text-gray-500 hover:text-white transition mt-2 block mx-auto hover:underline cursor-pointer"
-            >
-              Skip Feedback
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Modal: Device Permission Settings */}
       {showPermissionModal && (
@@ -923,10 +861,7 @@ function CustomerDashboard({ user, onLogout }) {
                   <p className="text-xs text-slate-500 font-medium">Grant support team target device access permissions</p>
                 </div>
               </div>
-              <button 
-                onClick={handleDenyOrLaterPermissions} 
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold transition cursor-pointer"
-              >
+              <button onClick={handleDenyOrLaterPermissions} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold transition cursor-pointer">
                 ✕
               </button>
             </div>
@@ -999,7 +934,7 @@ function CustomerDashboard({ user, onLogout }) {
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-white p-6 rounded-3xl border border-emerald-200 shadow-2xl text-center space-y-4 text-slate-900">
             <div className="mx-auto w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center animate-pulse border border-emerald-200 shadow-xs">
-              <Video size={30} />
+              <Phone size={30} />
             </div>
 
             <div>
@@ -1014,12 +949,14 @@ function CustomerDashboard({ user, onLogout }) {
 
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => setIncomingCallData(null)}
+                type="button"
+                onClick={handleDeclineIncomingCall}
                 className="flex-1 py-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold rounded-xl text-xs transition cursor-pointer shadow-xs"
               >
                 Decline
               </button>
               <button
+                type="button"
                 onClick={handleAcceptIncomingCall}
                 className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-emerald-200 cursor-pointer active:scale-95"
               >

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { useWebRtc } from '../context/WebRtcContext';
 import {
-  Video, VideoOff, Mic, MicOff, Monitor, MonitorOff, Phone, PhoneOff, Send, Paperclip,
+  VideoOff, Mic, MicOff, Monitor, MonitorOff, Phone, PhoneOff, Send, Paperclip,
   ArrowRightLeft, FileText, CheckCircle, ShieldAlert, Star, Power, User, Sun, Moon,
   Folder, Camera, Users, Lock, Eye, X, AlertCircle
 } from 'lucide-react';
@@ -554,7 +554,7 @@ function AgentDashboard({ user, onLogout }) {
         <div className="flex-1 flex flex-col p-6 overflow-y-auto">
           {!activeCall ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-12 bg-white border border-slate-200 rounded-2xl shadow-xs">
-              <Video className="text-slate-300 mb-3 animate-pulse" size={60} />
+              <Phone className="text-slate-300 mb-3 animate-pulse" size={60} />
               <h3 className="text-xl font-bold text-slate-900 mb-1">Awaiting Support Calls</h3>
               <p className="text-xs text-slate-500 max-w-sm">
                 Set your status to <span className="text-emerald-600 font-bold">Available</span> above.
@@ -575,17 +575,10 @@ function AgentDashboard({ user, onLogout }) {
               {(() => {
                 const hasLiveRemoteVideo = remoteStream && remoteStream.getVideoTracks().some(t => t.readyState === 'live' && !t.muted);
                 return (
-                  <div className="relative flex-1 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden min-h-[340px] flex items-center justify-center shadow-2xl">
+                  <div className="relative flex-1 bg-gradient-to-b from-slate-100 to-white rounded-2xl border border-slate-200 overflow-hidden min-h-[340px] flex items-center justify-center shadow-md">
 
                     {/* 1. Remote Video Stream (Rendered when Customer is Screen Sharing) */}
-                    <video
-                      ref={remoteVideoCallbackRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full h-full object-contain bg-black"
-                      style={{ display: hasLiveRemoteVideo ? 'block' : 'none' }}
-                    />
+                    <video ref={remoteVideoCallbackRef} autoPlay playsInline muted className="w-full h-full object-contain bg-slate-100" style={{ display: hasLiveRemoteVideo ? 'block' : 'none' }} />
 
                     {/* 2. Audio-Only Call UI (Rendered when no active screen share) */}
                     {!hasLiveRemoteVideo && (
@@ -595,20 +588,20 @@ function AgentDashboard({ user, onLogout }) {
                         <div className="relative">
                           <div className="absolute -inset-3 rounded-full bg-emerald-500/20 animate-ping"></div>
                           <div className="absolute -inset-6 rounded-full bg-emerald-500/10 animate-pulse"></div>
-                          <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 border-4 border-slate-800 text-white font-extrabold text-2xl flex items-center justify-center shadow-2xl relative">
+                          <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 border-4 border-slate-200 text-white font-extrabold text-2xl flex items-center justify-center shadow-2xl relative">
                             {activeCall.partnerName ? activeCall.partnerName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'CU'}
                           </div>
                         </div>
 
                         <div>
-                          <h3 className="text-xl font-bold text-white tracking-tight">{activeCall.partnerName}</h3>
-                          <p className="text-xs text-emerald-400 font-semibold mt-1 flex items-center justify-center gap-1.5">
+                          <h3 className="text-xl font-bold text-slate-900 tracking-tight">{activeCall.partnerName}</h3>
+                          <p className="text-xs text-emerald-700 font-semibold mt-1 flex items-center justify-center gap-1.5">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                             Voice Call Active • Audio Stream Connected
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-1.5 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800 text-[11px] text-slate-400 font-mono">
+                        <div className="flex items-center gap-1.5 bg-slate-100/90 px-4 py-2 rounded-xl border border-slate-300 text-[11px] text-slate-600 font-mono">
                           <span>Status: {connectionStatus}</span>
                           <span>•</span>
                           <span>Audio Encryption: SRTP</span>
@@ -618,9 +611,9 @@ function AgentDashboard({ user, onLogout }) {
 
                     {/* Screen Share Active Tag Overlay */}
                     {hasLiveRemoteVideo && (
-                      <div className="absolute top-4 left-4 bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 border border-slate-700 rounded-xl text-xs text-white flex items-center gap-2 shadow-lg">
+                      <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md px-3.5 py-1.5 border border-slate-200 rounded-xl text-xs text-slate-800 flex items-center gap-2 shadow-md">
                         <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                        <span>Customer Screen Share • <span className="font-bold text-blue-400">{activeCall.partnerName}</span></span>
+                        <span>Customer Screen Share • <span className="font-bold text-blue-600">{activeCall.partnerName}</span></span>
                       </div>
                     )}
                   </div>
