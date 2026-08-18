@@ -64,6 +64,7 @@ export const WebRtcProvider = ({ children }) => {
   const remoteVideoElRef = useRef(null);
   const connectionAttemptsRef = useRef(0);
   const isCallerRef = useRef(false); // Track if this peer is the caller
+  const connectedPartnerIdRef = useRef(null); // Track the partner user ID currently connected
   const silentBargeInPeersRef = useRef(new Map()); // Map adminUserId -> RTCPeerConnection for silent barge-in
 
   // Wrapped setActiveCall that syncs the ref synchronously
@@ -103,34 +104,38 @@ export const WebRtcProvider = ({ children }) => {
     if (!pc) return;
 
     const receivers = pc.getReceivers();
-    const activeTracks = receivers
+    const audioTracks = receivers
       .map((r) => r.track)
-      .filter((t) => t && t.readyState === 'live' && !t.muted);
+      .filter((t) => t && t.readyState === 'live' && t.kind === 'audio');
 
-    const hasVideo = isPartnerScreenSharingRef.current && activeTracks.some((t) => t.kind === 'video');
+    const videoTracks = receivers
+      .map((r) => r.track)
+      .filter((t) => t && t.readyState === 'live' && t.kind === 'video' && !t.muted);
 
-    if (hasVideo && activeTracks.length > 0) {
-      const newStream = new MediaStream(activeTracks);
-      setRemoteStream(newStream);
-      if (remoteVideoElRef.current) {
-        remoteVideoElRef.current.srcObject = newStream;
-      }
+    // 1. Dedicated background audio stream playback
+    if (audioTracks.length > 0) {
+      const audioStream = new MediaStream(audioTracks);
       if (remoteAudioElRef.current) {
-        remoteAudioElRef.current.srcObject = newStream;
+        if (remoteAudioElRef.current.srcObject !== audioStream) {
+          remoteAudioElRef.current.srcObject = audioStream;
+        }
         remoteAudioElRef.current.play().catch((e) => console.warn('Audio play error:', e));
       }
+    }
+
+    // 2. Stream state for UI rendering (e.g. Agent Dashboard screen share video element)
+    const hasVideo = isPartnerScreenSharingRef.current && videoTracks.length > 0;
+    if (hasVideo) {
+      const videoStream = new MediaStream([...videoTracks, ...audioTracks]);
+      setRemoteStream(videoStream);
+      if (remoteVideoElRef.current) {
+        remoteVideoElRef.current.srcObject = videoStream;
+      }
     } else {
-      const audioTracks = receivers
-        .map((r) => r.track)
-        .filter((t) => t && t.readyState === 'live' && t.kind === 'audio');
       const audioOnlyStream = audioTracks.length > 0 ? new MediaStream(audioTracks) : null;
       setRemoteStream(audioOnlyStream);
       if (remoteVideoElRef.current) {
-        remoteVideoElRef.current.srcObject = audioOnlyStream;
-      }
-      if (remoteAudioElRef.current) {
-        remoteAudioElRef.current.srcObject = audioOnlyStream;
-        remoteAudioElRef.current.play().catch((e) => console.warn('Audio play error:', e));
+        remoteVideoElRef.current.srcObject = null;
       }
     }
   }, []);
@@ -171,9 +176,10 @@ export const WebRtcProvider = ({ children }) => {
       peerConnectionRef.current = null;
     }
 
-    iceCandidatesQueueRef.current = [];
     connectionAttemptsRef.current = 0;
     isCallerRef.current = isCaller;
+    connectedPartnerIdRef.current = partnerUserId ? String(partnerUserId) : null;
+    isPartnerScreenSharingRef.current = false;
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
     peerConnectionRef.current = pc;
@@ -302,13 +308,7 @@ export const WebRtcProvider = ({ children }) => {
     const pc = initPeerConnection(partnerUserId, stream, true);
 
     try {
-      // Create offer with proper options
-      const offerOptions = {
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true,
-      };
-
-      const offer = await pc.createOffer(offerOptions);
+      const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
       console.log('Sending WebRTC offer to:', partnerUserId);
@@ -381,11 +381,10 @@ export const WebRtcProvider = ({ children }) => {
       }
 
       // Validate caller matches partner (or allow incoming offer from transferred partner)
-      if (currentCall.partnerUserId && String(currentCall.partnerUserId) !== String(from)) {
-        if (signalData.sdp && signalData.sdp.type === 'offer') {
-          console.log('Received new WebRTC offer from new partner (e.g. Call Transfer):', from);
-          currentCall = { ...currentCall, partnerUserId: from };
-          setActiveCall(currentCall);
+      if (signalData.sdp && signalData.sdp.type === 'offer') {
+        const isDifferentPartner = !connectedPartnerIdRef.current || String(connectedPartnerIdRef.current) !== String(from);
+        if (isDifferentPartner) {
+          console.log('Incoming offer from new partner (e.g. Call Transfer). Resetting peer connection for:', from);
           if (peerConnectionRef.current) {
             try {
               peerConnectionRef.current.close();
@@ -394,10 +393,20 @@ export const WebRtcProvider = ({ children }) => {
             }
             peerConnectionRef.current = null;
           }
-        } else {
-          console.warn('Received signal from non-partner user:', from, 'expected:', currentCall.partnerUserId);
-          return;
+          connectedPartnerIdRef.current = String(from);
+          iceCandidatesQueueRef.current = [];
+          isPartnerScreenSharingRef.current = false;
+          setIsScreenSharing(false);
+          if (screenStreamRef.current) {
+            stopMediaTracks(screenStreamRef.current);
+            screenStreamRef.current = null;
+          }
+          currentCall = { ...currentCall, partnerUserId: from };
+          setActiveCall(currentCall);
         }
+      } else if (connectedPartnerIdRef.current && String(connectedPartnerIdRef.current) !== String(from)) {
+        console.warn('Received non-offer signal from unexpected partner:', from, 'expected:', connectedPartnerIdRef.current);
+        return;
       }
 
       let pc = peerConnectionRef.current;
@@ -463,12 +472,7 @@ export const WebRtcProvider = ({ children }) => {
 
             // Only create answer if signalingState is in have-remote-offer state
             if (pc.signalingState === 'have-remote-offer') {
-              const answerOptions = {
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: true,
-              };
-
-              const answer = await pc.createAnswer(answerOptions);
+              const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
 
               console.log('Sending WebRTC answer to:', from);
@@ -555,10 +559,7 @@ export const WebRtcProvider = ({ children }) => {
       };
 
       try {
-        const offer = await pc.createOffer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: true,
-        });
+        const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
         socket.emit('signal', {
@@ -575,16 +576,39 @@ export const WebRtcProvider = ({ children }) => {
         try {
           silentBargeInPeersRef.current.get(adminUserId).close();
         } catch (e) {}
-        silentBargeInPeersRef.current.delete(adminUserId);
+          silentBargeInPeersRef.current.delete(adminUserId);
       }
     };
 
+    const handlePartnerChanged = ({ newPartnerUserId, newPartnerName }) => {
+      console.log('WebRTC Context received partner-changed:', newPartnerUserId, newPartnerName);
+      if (peerConnectionRef.current) {
+        try {
+          peerConnectionRef.current.close();
+        } catch (e) {
+          console.warn('Error closing peer connection on partner-changed:', e);
+        }
+        peerConnectionRef.current = null;
+      }
+      connectedPartnerIdRef.current = newPartnerUserId ? String(newPartnerUserId) : null;
+      iceCandidatesQueueRef.current = [];
+      isPartnerScreenSharingRef.current = false;
+      setIsScreenSharing(false);
+      if (screenStreamRef.current) {
+        stopMediaTracks(screenStreamRef.current);
+        screenStreamRef.current = null;
+      }
+      setConnectionStatus('connecting');
+    };
+
     socket.on('signal', handleSignal);
+    socket.on('partner-changed', handlePartnerChanged);
     socket.on('silent-barge-in-requested', handleSilentBargeInRequested);
     socket.on('silent-barge-in-stopped', handleSilentBargeInStopped);
 
     return () => {
       socket.off('signal', handleSignal);
+      socket.off('partner-changed', handlePartnerChanged);
       socket.off('silent-barge-in-requested', handleSilentBargeInRequested);
       socket.off('silent-barge-in-stopped', handleSilentBargeInStopped);
     };
@@ -637,10 +661,7 @@ export const WebRtcProvider = ({ children }) => {
 
       // Trigger SDP renegotiation so remote peer updates stream state
       try {
-        const offer = await pc.createOffer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: true,
-        });
+        const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
         if (partnerId && socket && isConnected) {
@@ -702,10 +723,7 @@ export const WebRtcProvider = ({ children }) => {
           }
 
           // Trigger renegotiation offer so remote receives the new video track
-          const offer = await pc.createOffer({
-            offerToReceiveAudio: true,
-            offerToReceiveVideo: true,
-          });
+          const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
 
           const partnerId = activeCallRef.current?.partnerUserId;
@@ -746,6 +764,7 @@ export const WebRtcProvider = ({ children }) => {
 
     localStreamRef.current = null;
     screenStreamRef.current = null;
+    connectedPartnerIdRef.current = null;
     iceCandidatesQueueRef.current = [];
     connectionAttemptsRef.current = 0;
 

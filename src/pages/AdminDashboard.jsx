@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Users, UserPlus, Video, AlertTriangle, FileText, Activity, Power, ArrowRightLeft, CheckCircle, PhoneCall, X, ShieldAlert, Filter, Clock, Eye, Mic, MicOff
+  Users, UserPlus, Video, AlertTriangle, FileText, Activity, Power, ArrowRightLeft, CheckCircle, PhoneCall, X, ShieldAlert, Filter, Clock, Eye, Mic, MicOff, Trash2
 } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { authFetch } from '../config/api';
@@ -46,6 +46,8 @@ function AdminDashboard({ user, onLogout }) {
   // Modals & form state
   const [showCreateAgentModal, setShowCreateAgentModal] = useState(false);
   const [agentForm, setAgentForm] = useState({ userId: '', name: '', password: '', phone: '', departmentId: '' });
+  const [agentToDelete, setAgentToDelete] = useState(null);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
 
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -219,6 +221,42 @@ function AdminDashboard({ user, onLogout }) {
       if (res.ok) fetchData();
     } catch (err) {
       console.error('Error toggling agent status:', err);
+    }
+  };
+
+  // Delete Agent
+  const handleDeleteAgent = async () => {
+    if (!agentToDelete) return;
+    try {
+      const res = await authFetch(`/api/admin/agents/${agentToDelete.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage(`Agent '${agentToDelete.agentCode}' deleted successfully.`);
+        setAgentToDelete(null);
+        fetchData();
+      } else {
+        alert(data.message || 'Failed to delete agent');
+      }
+    } catch (err) {
+      console.error('Error deleting agent:', err);
+    }
+  };
+
+  // Delete Customer
+  const handleDeleteCustomer = async () => {
+    if (!customerToDelete) return;
+    try {
+      const res = await authFetch(`/api/admin/customers/${customerToDelete.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage(`Customer '${customerToDelete.userId}' deleted successfully.`);
+        setCustomerToDelete(null);
+        fetchData();
+      } else {
+        alert(data.message || 'Failed to delete customer');
+      }
+    } catch (err) {
+      console.error('Error deleting customer:', err);
     }
   };
 
@@ -692,16 +730,24 @@ function AdminDashboard({ user, onLogout }) {
                           {agent.status}
                         </span>
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleToggleAgent(agent.id)}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                             agent.status === 'Active'
-                              ? 'bg-red-50 hover:bg-red-100 text-red-700 border border-red-200'
+                              ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200'
                               : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
                           }`}
                         >
                           {agent.status === 'Active' ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          onClick={() => setAgentToDelete(agent)}
+                          className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                          title="Delete Agent Account"
+                        >
+                          <Trash2 size={13} />
+                          <span>Delete</span>
                         </button>
                       </td>
                     </tr>
@@ -729,7 +775,7 @@ function AdminDashboard({ user, onLogout }) {
                     <th className="p-4">Phone Number</th>
                     <th className="p-4">Assigned Agent Code</th>
                     <th className="p-4">Assigned Agent Name</th>
-                    <th className="p-4 text-right">Reassign Agent</th>
+                    <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -740,17 +786,25 @@ function AdminDashboard({ user, onLogout }) {
                       <td className="p-4 text-slate-600 font-mono">{cust.phone || 'N/A'}</td>
                       <td className="p-4 font-mono font-bold text-blue-700">{cust.assignedAgentCode || 'Unassigned'}</td>
                       <td className="p-4 font-medium text-slate-900">{cust.assignedAgentName}</td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right flex items-center justify-end gap-2">
                         <button
                           onClick={() => {
                             setSelectedCustomer(cust);
                             setTargetAgentId(cust.assignedAgentId || (agents[0] ? agents[0].id : ''));
                             setShowReassignModal(true);
                           }}
-                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 ml-auto cursor-pointer shadow-xs"
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                         >
                           <ArrowRightLeft size={13} />
-                          <span>Reassign Agent</span>
+                          <span>Reassign</span>
+                        </button>
+                        <button
+                          onClick={() => setCustomerToDelete(cust)}
+                          className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                          title="Delete Customer Account"
+                        >
+                          <Trash2 size={13} />
+                          <span>Delete</span>
                         </button>
                       </td>
                     </tr>
@@ -1534,6 +1588,90 @@ function AdminDashboard({ user, onLogout }) {
                   <span>Reassign Customer & Transfer Call</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Delete Agent Confirmation */}
+      {agentToDelete && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md border border-slate-200 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-base font-extrabold text-red-600 flex items-center gap-2">
+                <Trash2 size={20} />
+                <span>Delete Agent Account</span>
+              </h3>
+              <button onClick={() => setAgentToDelete(null)} className="p-1 hover:bg-slate-100 rounded-lg transition cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs text-slate-600">
+              <p className="font-semibold text-slate-800">Are you sure you want to permanently delete this agent account?</p>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-1 font-mono text-slate-900">
+                <p><strong>Agent Code:</strong> {agentToDelete.agentCode}</p>
+                <p><strong>Name:</strong> {agentToDelete.name}</p>
+                <p><strong>Department:</strong> {agentToDelete.department}</p>
+              </div>
+              <p className="text-red-600 font-bold">This action cannot be undone. Active calls will be disconnected, assigned customers will be unassigned, and the agent will be logged out immediately.</p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setAgentToDelete(null)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAgent}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl transition shadow-md shadow-red-200 cursor-pointer"
+              >
+                Delete Agent
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Delete Customer Confirmation */}
+      {customerToDelete && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md border border-slate-200 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-base font-extrabold text-red-600 flex items-center gap-2">
+                <Trash2 size={20} />
+                <span>Delete Customer Account</span>
+              </h3>
+              <button onClick={() => setCustomerToDelete(null)} className="p-1 hover:bg-slate-100 rounded-lg transition cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs text-slate-600">
+              <p className="font-semibold text-slate-800">Are you sure you want to permanently delete this customer account?</p>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-1 font-mono text-slate-900">
+                <p><strong>Customer User ID:</strong> {customerToDelete.userId}</p>
+                <p><strong>Name:</strong> {customerToDelete.name}</p>
+                <p><strong>Phone:</strong> {customerToDelete.phone || 'N/A'}</p>
+              </div>
+              <p className="text-red-600 font-bold">This action cannot be undone. Active call sessions and waiting queue requests will be canceled immediately.</p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setCustomerToDelete(null)}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteCustomer}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl transition shadow-md shadow-red-200 cursor-pointer"
+              >
+                Delete Customer
+              </button>
             </div>
           </div>
         </div>

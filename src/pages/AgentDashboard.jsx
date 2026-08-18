@@ -166,6 +166,13 @@ function AgentDashboard({ user, onLogout }) {
       setIncomingTransferRequest(transferData);
     });
 
+    // 7. Listen for Force Logout (e.g. account deactivated or deleted)
+    socket.on('force-logout', (data) => {
+      console.log('Agent received force-logout:', data);
+      alert(data?.reason || 'Your agent account was deactivated or removed by an administrator.');
+      if (onLogout) onLogout();
+    });
+
     return () => {
       socket.off('call-assigned');
       socket.off('receive-message');
@@ -174,8 +181,9 @@ function AgentDashboard({ user, onLogout }) {
       socket.off('transfer-rejected');
       socket.off('transfer-completed');
       socket.off('transfer-requested');
+      socket.off('force-logout');
     };
-  }, [socket, isConnected, startPeerCall, leaveCall]);
+  }, [socket, isConnected, startPeerCall, leaveCall, onLogout]);
 
   // Handle incoming transfer accept / reject
   const handleAcceptTransfer = async () => {
@@ -502,8 +510,7 @@ function AgentDashboard({ user, onLogout }) {
               <span className="truncate">Call Customer</span>
             </button>
 
-            <button
-              onClick={() => setShowEscalationModal(true)}
+            <button onClick={() => setShowEscalationModal(true)}
               className="col-span-2 sm:col-span-1 px-2.5 sm:px-3 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
             >
               <ShieldAlert size={14} className="text-amber-600 shrink-0" />
@@ -513,8 +520,7 @@ function AgentDashboard({ user, onLogout }) {
 
           <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
             <div className="flex-1 sm:flex-initial flex items-center bg-slate-100 border border-slate-200 rounded-xl p-1 gap-1">
-              <button
-                onClick={() => handleToggleAvailability('Available')}
+              <button onClick={() => handleToggleAvailability('Available')}
                 className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${availability === 'Available'
                   ? 'bg-emerald-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 hover:text-emerald-700'
@@ -523,23 +529,18 @@ function AgentDashboard({ user, onLogout }) {
                 <Power size={12} />
                 Available
               </button>
-              <button
-                onClick={() => handleToggleAvailability('Offline')}
+              <button onClick={() => handleToggleAvailability('Offline')}
                 className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${availability === 'Offline'
                   ? 'bg-red-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 hover:text-red-700'
                   }`}
               >
                 <Power size={12} />
-                Go Offline
+                Offline
               </button>
             </div>
 
-            <button
-              onClick={onLogout}
-              className="p-2.5 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-xl text-slate-600 hover:text-red-700 transition cursor-pointer shrink-0"
-              title="Log Out"
-            >
+            <button onClick={onLogout} className="p-2.5 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-xl text-slate-600 hover:text-red-700 transition cursor-pointer shrink-0" title="Log Out" >
               <Power size={18} />
             </button>
           </div>
@@ -581,6 +582,7 @@ function AgentDashboard({ user, onLogout }) {
                       ref={remoteVideoCallbackRef}
                       autoPlay
                       playsInline
+                      muted
                       className="w-full h-full object-contain bg-black"
                       style={{ display: hasLiveRemoteVideo ? 'block' : 'none' }}
                     />

@@ -26,10 +26,16 @@ function CustomerDashboard({ user, onLogout }) {
   } = useWebRtc();
 
   // Customer states
+  const [assignedAgent, setAssignedAgent] = useState(user.assignedAgent || null);
   const [departments, setDepartments] = useState([]);
   const [selectedDeptId, setSelectedDeptId] = useState('');
   const [phone, setPhone] = useState(user.phone || '');
   const [notes, setNotes] = useState('');
+
+  // Sync assignedAgent state with user prop updates
+  useEffect(() => {
+    setAssignedAgent(user.assignedAgent || null);
+  }, [user.assignedAgent]);
   
   const [queueItem, setQueueItem] = useState(null);
   const [queuePosition, setQueuePosition] = useState(0);
@@ -105,13 +111,13 @@ function CustomerDashboard({ user, onLogout }) {
         setShowPermissionModal(true);
       } else {
         // Assigned agent is offline or busy -> Automatically join waiting queue for Admin dispatch!
-        const deptId = user.assignedAgent?.departmentId || (departments[0] ? departments[0].id : 1);
+        const deptId = assignedAgent?.departmentId || user.assignedAgent?.departmentId || (departments[0] ? departments[0].id : 1);
         const queueRes = await authFetch('/api/queues/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             departmentId: parseInt(deptId),
-            notes: `Attempted call to assigned agent '${user.assignedAgent?.name || 'Agent'}', currently ${data.agentStatus || 'unavailable'}.`,
+            notes: `Attempted call to assigned agent '${assignedAgent?.name || user.assignedAgent?.name || 'Agent'}', currently ${data.agentStatus || 'unavailable'}.`,
           }),
         });
 
@@ -232,6 +238,38 @@ function CustomerDashboard({ user, onLogout }) {
       });
     });
 
+    // 7. Listen for Agent live availability status updates
+    socket.on('agent-status-updated', (data) => {
+      console.log('Customer received agent-status-updated:', data);
+      setAssignedAgent((prev) => {
+        if (!prev) return prev;
+        if (prev.id === data.agentId || prev.agentCode === data.agentCode || prev.id === data.userId) {
+          const newStatus = data.userStatus === 'Inactive' ? 'Offline' : data.status;
+          return { ...prev, status: newStatus };
+        }
+        return prev;
+      });
+    });
+
+    // 8. Listen for Agent deletion
+    socket.on('agent-deleted', (data) => {
+      console.log('Customer received agent-deleted:', data);
+      setAssignedAgent((prev) => {
+        if (!prev) return prev;
+        if (prev.id === data.agentId || prev.agentCode === data.agentCode) {
+          return null;
+        }
+        return prev;
+      });
+    });
+
+    // 9. Listen for Force Logout (e.g. account deactivated or deleted)
+    socket.on('force-logout', (data) => {
+      console.log('Customer received force-logout:', data);
+      alert(data?.reason || 'Your account session was ended by an administrator.');
+      if (onLogout) onLogout();
+    });
+
     return () => {
       socket.off('incoming-call');
       socket.off('call-assigned');
@@ -240,8 +278,11 @@ function CustomerDashboard({ user, onLogout }) {
       socket.off('prompt-device-permissions');
       socket.off('call-ended');
       socket.off('partner-changed');
+      socket.off('agent-status-updated');
+      socket.off('agent-deleted');
+      socket.off('force-logout');
     };
-  }, [socket, isConnected, setActiveCall, leaveCall]);
+  }, [socket, isConnected, setActiveCall, leaveCall, onLogout]);
 
   // Handle Customer Denying or Choosing Later for Device Permissions
   const handleDenyOrLaterPermissions = async () => {
@@ -705,29 +746,29 @@ function CustomerDashboard({ user, onLogout }) {
             <div className="absolute top-[10%] left-[20%] w-[350px] h-[350px] bg-blue-900/10 rounded-full blur-[80px]"></div>
 
             {/* Assigned Agent Banner (If mapped) */}
-            {user.assignedAgent && (
+            {assignedAgent && (
               <div className="w-full max-w-lg bg-white p-5 rounded-2xl border border-blue-200 shadow-md relative z-10 space-y-3 text-slate-900">
                 <div className="flex justify-between items-center">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">Your Assigned Primary Support Agent</span>
-                    <h3 className="text-lg font-bold text-slate-900 mt-0.5">{user.assignedAgent.name}</h3>
+                    <h3 className="text-lg font-bold text-slate-900 mt-0.5">{assignedAgent.name}</h3>
                   </div>
                   <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
-                    user.assignedAgent.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                    user.assignedAgent.status === 'Busy' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                    assignedAgent.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                    assignedAgent.status === 'Busy' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                     'bg-slate-100 text-slate-600 border-slate-200'
                   }`}>
-                    {user.assignedAgent.status}
+                    {assignedAgent.status}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
                   <div className="text-slate-600">
-                    <span className="font-mono text-blue-700 font-bold">{user.assignedAgent.agentCode}</span> • {user.assignedAgent.department}
+                    <span className="font-mono text-blue-700 font-bold">{assignedAgent.agentCode}</span> • {assignedAgent.department}
                   </div>
                   <button
                     onClick={handleCallAssignedAgent}
-                    disabled={user.assignedAgent.status !== 'Available'}
+                    disabled={assignedAgent.status !== 'Available'}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     <Video size={14} />
